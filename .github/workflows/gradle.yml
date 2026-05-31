@@ -17,5 +17,5 @@ jobs:
           java-version: 17
       - name: Build plugin jar
         uses: gradle/actions/setup-gradle@v4
-      - name: Run Gradle
-        run: gradle clean shadowJar
+        with:
+          arguments: clean shadowJar
