@@ -35,7 +35,7 @@ public final class ModelService {
     private final AtomicBoolean training = new AtomicBoolean(false);
     private volatile String trainingPhase = "idle";
     private volatile long trainingStartedAt;
-    private ScheduledFuture<?> progressTask;
+    private volatile ScheduledFuture<?> progressTask;
 
     public ModelService(LumoAiDetectorPlugin plugin, PluginSettings settings, MessageService messages, Platform platform, ModelRepository repository, RuntimeStateService runtimeStateService, ScheduledExecutorService timerExecutor, StatsService statsService) {
         this.plugin = plugin;

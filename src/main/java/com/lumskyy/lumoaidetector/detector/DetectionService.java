@@ -221,12 +221,12 @@ public final class DetectionService {
     private double errorAngle(Location eye, Location target) {
         try {
             Vector direction = eye.getDirection();
-            Vector toTarget = target.subtract(eye).toVector();
+            Vector toTarget = target.clone().subtract(eye).toVector();
             if (toTarget.lengthSquared() <= 0.000001D) {
                 return 180.0D;
             }
             return Math.toDegrees(direction.angle(toTarget));
-        } catch (Throwable ignored) {
+        } catch (Exception ignored) {
             return 180.0D;
         }
     }

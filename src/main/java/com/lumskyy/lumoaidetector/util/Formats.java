@@ -2,15 +2,14 @@ package com.lumskyy.lumoaidetector.util;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public final class Formats {
     private static final DecimalFormat ONE = new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
     private static final DecimalFormat TWO = new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.US));
-    private static final SimpleDateFormat DATE = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-    private static final SimpleDateFormat FILE_DATE = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US);
 
     private Formats() {
     }
@@ -24,11 +23,11 @@ public final class Formats {
     }
 
     public static String date(long millis) {
-        return DATE.format(new Date(millis));
+        return Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     public static String fileDate(long millis) {
-        return FILE_DATE.format(new Date(millis));
+        return Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
     }
 
     public static String duration(long millis) {

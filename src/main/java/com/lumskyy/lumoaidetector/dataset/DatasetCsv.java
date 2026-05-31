@@ -59,8 +59,7 @@ public final class DatasetCsv {
         int legit = 0;
         int cheater = 0;
         int skipped = 0;
-        BufferedReader reader = new BufferedReader(new FileReader(file));
-        try {
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty() || line.startsWith("dx_1,")) {
@@ -108,8 +107,6 @@ public final class DatasetCsv {
                 features.add(row);
                 labels.add(Integer.valueOf(label));
             }
-        } finally {
-            reader.close();
         }
         double[][] x = new double[features.size()][FEATURE_COUNT];
         int[] y = new int[features.size()];

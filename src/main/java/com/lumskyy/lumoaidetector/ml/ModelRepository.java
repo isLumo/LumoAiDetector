@@ -128,11 +128,8 @@ public final class ModelRepository {
     public void saveModel(RandomForest model, ModelMetadata metadata) throws IOException {
         modelsDir().mkdirs();
         File modelFile = modelFile(modelsDir(), metadata.name());
-        ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(modelFile));
-        try {
+        try (ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(modelFile))) {
             output.writeObject(model);
-        } finally {
-            output.close();
         }
         metadata.save(metadataFile(modelsDir(), metadata.name()));
     }
@@ -142,15 +139,12 @@ public final class ModelRepository {
         if (info == null) {
             return null;
         }
-        ObjectInputStream input = new ObjectInputStream(new FileInputStream(info.modelFile()));
-        try {
+        try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(info.modelFile()))) {
             Object object = input.readObject();
             if (!(object instanceof RandomForest)) {
                 throw new IOException("File is not RandomForest model");
             }
             return new ModelBundle((RandomForest) object, info);
-        } finally {
-            input.close();
         }
     }
 

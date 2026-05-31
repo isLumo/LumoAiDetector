@@ -21,7 +21,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LumoAiDetectorPlugin extends JavaPlugin {
-    private PluginSettings settings;
+    private volatile PluginSettings settings;
     private MessageService messages;
     private Platform platform;
     private ExecutorService ioExecutor;
