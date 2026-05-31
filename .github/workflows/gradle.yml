@@ -13,7 +13,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - run: java -jar gradle/wrapper/gradle-wrapper.jar clean shadowJar
+      - run: gradle clean shadowJar
       - uses: actions/upload-artifact@v4
         with:
           name: Plugin JAR
