@@ -1,0 +1,25 @@
+LumoAiDetector
+Copyright 2026 Lumo (Lumskyy)
+
+Original author and project owner: Lumo, full nickname Lumskyy.
+Official project name: LumoAiDetector.
+
+This product includes original source code, configuration design, command
+structure, dataset format integration, model-management workflow, and project
+packaging created for LumoAiDetector by Lumo (Lumskyy).
+
+All redistributed copies, forks, modified versions, binary builds, plugin jars,
+marketplace uploads, server-pack bundles, mirrors, and derivative works must
+preserve this NOTICE file and clearly retain attribution to Lumo (Lumskyy) as
+the original author of LumoAiDetector.
+
+The names "LumoAiDetector", "Lumo", and "Lumskyy" identify the original project
+and author. The Apache License, Version 2.0 does not grant permission to use
+these names, branding, or project identity to imply that an unofficial fork,
+modified build, reupload, marketplace listing, or derivative plugin is the
+official original project or is endorsed by Lumo (Lumskyy).
+
+Unofficial forks and modified builds should use a clearly different project
+name and must disclose that they are based on LumoAiDetector by Lumo (Lumskyy).
+
+Third-party dependencies are governed by their own licenses.

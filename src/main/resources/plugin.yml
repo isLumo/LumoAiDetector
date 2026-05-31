@@ -1,0 +1,37 @@
+name: LumoAiDetector
+version: ${projectVersion}
+main: com.lumskyy.lumoaidetector.LumoAiDetectorPlugin
+author: Lumo
+description: ML combat rotation detector by Lumskyy.
+folia-supported: true
+commands:
+  lad:
+    description: LumoAiDetector admin command.
+    usage: /lad
+    aliases:
+      - lumoaidetector
+permissions:
+  LumoAiDetector.admin:
+    default: op
+  LumoAiDetector.reload:
+    default: op
+  LumoAiDetector.status:
+    default: op
+  LumoAiDetector.record:
+    default: op
+  LumoAiDetector.train:
+    default: op
+  LumoAiDetector.active:
+    default: op
+  LumoAiDetector.deactive:
+    default: op
+  LumoAiDetector.check:
+    default: op
+  LumoAiDetector.models:
+    default: op
+  LumoAiDetector.delete:
+    default: op
+  LumoAiDetector.backup:
+    default: op
+  LumoAiDetector.alert:
+    default: op

@@ -1,0 +1,102 @@
+prefix: "&9LumoAiDetector &7»"
+
+common:
+  no-permission: "{prefix} &fУ тебя нет права &9{permission}&f."
+  player-only: "{prefix} &fЭта команда доступна только игроку."
+  unknown-command: "{prefix} &fНеизвестная команда. Используй &9/lad&f."
+  player-not-found: "{prefix} &fИгрок &9{player}&f не найден."
+  number-invalid: "{prefix} &fЧисло &9{value}&f указано неверно."
+  page-empty: "{prefix} &fНа этой странице ничего нет."
+  done: "{prefix} &fГотово."
+
+help:
+  header: "{prefix} &fКоманды администратора:"
+  line-reload: "&7- &9/lad reload &7- &fперезагрузить конфиги."
+  line-status: "&7- &9/lad status &7- &fстатус детектора, модели и датасета."
+  line-record: "&7- &9/lad record legit|cheater <ник> &7- &fвключить или выключить запись датасета."
+  line-record-info: "&7- &9/lad record info [all|legit|cheater] [страница] &7- &fпосмотреть записи."
+  line-train: "&7- &9/lad train &7- &fобучить модель на dataset.csv."
+  line-active: "&7- &9/lad active <модель> &7- &fзагрузить модель."
+  line-deactive: "&7- &9/lad deactive &7- &fвыключить модель."
+  line-check: "&7- &9/lad check <ник> &7- &fпроверить текущий процент."
+  line-models: "&7- &9/lad models [страница] &7- &fсписок моделей."
+  line-deleted: "&7- &9/lad deleted <модель> &7- &fудалить модель во временный бекап."
+  line-backup: "&7- &9/lad backup [list|restore|purge] &7- &fуправлять бекапами."
+
+reload:
+  success: "{prefix} &fКонфиги и сообщения перезагружены."
+
+status:
+  header: "{prefix} &fСтатус плагина:"
+  version: "&7- &fВерсия: &9{version}&f, автор: &9Lumo &7(&9Lumskyy&7)&f."
+  platform: "&7- &fСервер: &9{server}&f, Folia: &9{folia}&f."
+  detector: "&7- &fДетектор: &9{detector}&f."
+  model: "&7- &fАктивная модель: &9{model}&f."
+  training: "&7- &fОбучение: &9{training}&f, этап: &9{phase}&f."
+  recording: "&7- &fЗапись датасета: &9{recording}&f игроков."
+  dataset: "&7- &fДатасет: &9{rows}&f строк, legit &9{legit}&f, cheater &9{cheater}&f."
+  stats: "&7- &fПроверено окон: &9{analyzed}&f, алертов: &9{alerts}&f, 100% cheater: &9{definite}&f."
+
+record:
+  usage: "{prefix} &fИспользуй &9/lad record legit|cheater <ник>&f или &9/lad record info&f."
+  started: "{prefix} &fИгрок &9{player}&f теперь записывается как &9{label}&f."
+  stopped: "{prefix} &fЗапись игрока &9{player}&f остановлена. Окон записано: &9{windows}&f."
+  info-header: "{prefix} &fАктивные записи &7(&9{filter}&7) &fстраница &9{page}&7/&9{pages}&f:"
+  info-empty: "{prefix} &fСейчас никто не записывается."
+  info-entry: "&7- &9{player} &7- &fкласс &9{label}&f, окон &9{windows}&f, время &9{time}&f."
+  button-stop: " &7[&9стоп&7]"
+  hover-stop: "&fВыключить запись &9{player}&f."
+
+train:
+  already: "{prefix} &fОбучение уже идет. Этап: &9{phase}&f, прошло &9{elapsed}&f."
+  started: "{prefix} &fОбучение началось. Строк: &9{rows}&f."
+  progress: "{prefix} &fОбучение идет. Этап: &9{phase}&f, прошло &9{elapsed}&f."
+  success: "{prefix} &fМодель &9{model}&f обучена за &9{time}&f. Accuracy &9{accuracy}%&f, Precision &9{precision}%&f, Recall &9{recall}%&f."
+  failed: "{prefix} &fОбучение остановлено: &9{reason}&f."
+  not-enough-data: "{prefix} &fМало данных: всего &9{rows}&f, legit &9{legit}&f, cheater &9{cheater}&f."
+
+model:
+  none-active: "нет"
+  activated: "{prefix} &fМодель &9{model}&f включена."
+  deactivated: "{prefix} &fМодель выключена."
+  not-found: "{prefix} &fМодель &9{model}&f не найдена."
+  error: "{prefix} &fОшибка модели &9{model}&f: &9{error}&f."
+  list-header: "{prefix} &fМодели страница &9{page}&7/&9{pages}&f:"
+  list-empty: "{prefix} &fМоделей пока нет. Используй &9/lad train&f."
+  list-entry: "&7- &9{model} &7- &fразмер &9{size}&f, строки &9{rows}&f, accuracy &9{accuracy}%&f, создана &9{created}&f."
+  list-entry-active: "&7- &9{model} &7(&9active&7) &7- &fразмер &9{size}&f, строки &9{rows}&f, accuracy &9{accuracy}%&f, создана &9{created}&f."
+  button-active: " &7[&9active&7]"
+  button-delete: " &7[&9deleted&7]"
+  hover-active: "&fВключить модель &9{model}&f."
+  hover-delete: "&fПеренести модель &9{model}&f во временный бекап."
+  deleted: "{prefix} &fМодель &9{model}&f перенесена в бекап &9{backup}&f."
+  already-active: "{prefix} &fМодель &9{model}&f уже включена. Сначала можно выключить ее через &9/lad deactive&f."
+
+backup:
+  usage: "{prefix} &fИспользуй &9/lad backup list&f, &9/lad backup restore <backup>&f или &9/lad backup purge <backup>&f."
+  list-header: "{prefix} &fБекапы моделей страница &9{page}&7/&9{pages}&f:"
+  list-empty: "{prefix} &fБекапов моделей нет."
+  list-entry: "&7- &9{backup} &7- &fразмер &9{size}&f, удалится через &9{ttl}&f."
+  restored: "{prefix} &fБекап &9{backup}&f восстановлен как модель &9{model}&f."
+  purged: "{prefix} &fБекап &9{backup}&f удален окончательно."
+  not-found: "{prefix} &fБекап &9{backup}&f не найден."
+  button-restore: " &7[&9restore&7]"
+  button-purge: " &7[&9purge&7]"
+  hover-restore: "&fВосстановить &9{backup}&f."
+  hover-purge: "&fУдалить &9{backup}&f окончательно."
+
+check:
+  no-data: "{prefix} &fПо игроку &9{player}&f еще нет валидных окон."
+  result: "{prefix} &fИгрок &9{player}&f: подозрение &9{percent}%&f, окон &9{windows}&f, последняя уверенность &9{confidence}%&f, модель &9{model}&f."
+
+alert:
+  chat: "{prefix} &fИгрок &9{player}&f подозрение &9{percent}%&f, уверенность &9{confidence}%&f, модель &9{model}&f."
+
+punishment:
+  executed: "{prefix} &fКоманды наказания выполнены для &9{player}&f."
+
+buttons:
+  prev: " &7[&9назад&7]"
+  next: " &7[&9дальше&7]"
+  hover-prev: "&fСтраница &9{page}&f."
+  hover-next: "&fСтраница &9{page}&f."

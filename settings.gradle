@@ -1,0 +1,20 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+        maven {
+            name = "spigot-repo"
+            url = uri("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+        }
+
+    }
+}
+
+rootProject.name = "LumoAiDetector"
