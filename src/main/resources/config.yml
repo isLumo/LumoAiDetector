@@ -1,106 +1,106 @@
 # LumoAiDetector 0.0.1
-# Конфиг создается в plugins/LumoAiDetector/config.yml.
-# Значения по умолчанию сделаны осторожными: плагин собирает чистые окна, пишет алерты и не банит автоматически.
-# Автонаказания лучше включать только после своего датасета, проверки модели и тестов на сервере.
+# Config is created in plugins/LumoAiDetector/config.yml.
+# Default values are conservative: the plugin collects clean windows, writes alerts, and does not auto-ban.
+# Auto-punishment should only be enabled after your own dataset, model validation, and server testing.
 
 settings:
-  # Включает подробные сообщения в консоль. Лучше держать false на рабочем сервере.
+  # Enables verbose console messages. Keep false on production servers.
   debug: false
 
 detector:
-  # Главный переключатель анализа. Запись датасета через /lad record остается доступной.
+  # Main analysis toggle. Dataset recording via /lad record remains available.
   enabled: true
-  # Размер скользящего окна. Под формат CSV из задания должен быть 15.
+  # Sliding window size. Must be 15 to match the CSV format.
   window-size: 15
-  # Игрок считается в бою, если удар или взмах рукой был не старше этого времени.
+  # A player is considered in combat if the last hit or swing is not older than this.
   combat-gate-ms: 1000
-  # Радиус поиска живой цели.
+  # Radius for searching a living target.
   target-radius: 6.0
-  # Максимальный угол до цели. Чем меньше, тем строже фильтр мусора.
+  # Maximum angle to the target. Smaller values filter more garbage.
   max-target-angle: 60.0
-  # Минимальная сумма |dx| + |dy| по 15 тикам.
+  # Minimum sum of |dx| + |dy| across 15 ticks.
   movement-threshold: 15.0
-  # Нормальное окно по времени между поворотами. Не стоит расширять без причины.
+  # Normal time window between rotations. Do not widen without reason.
   dt-min-ms: 25.0
   dt-max-ms: 150.0
-  # Жесткий лаг. Если dt выше этого значения, окно сразу очищается.
+  # Hard lag threshold. If dt exceeds this, the window is cleared immediately.
   hard-lag-ms: 200.0
-  # Масштаб для вычисления GCD-сетки поворота. Лучше не менять.
+  # Scale for computing the rotation GCD grid. Better left unchanged.
   gcd-scale: 100000.0
-  # Сколько последних дельт хранить для оценки GCD.
+  # How many recent deltas to store for GCD estimation.
   gcd-history-size: 32
-  # Нижний предел множителя. Защищает от огромных dx/dy при шуме float.
+  # Lower bound for the multiplier. Protects against huge dx/dy from float noise.
   gcd-min-multiplier: 0.0001
-  # Запасной множитель, если GCD еще не накоплен.
+  # Fallback multiplier before GCD has accumulated enough data.
   default-multiplier: 0.01
-  # Жесткий предел одного шага мыши после нормализации.
+  # Hard limit for one mouse step after normalization.
   max-normalized-step: 10000.0
 
 alert:
-  # Алерты видят игроки с правом LumoAiDetector.alert.
+  # Alerts are visible to players with the LumoAiDetector.alert permission.
   enabled: true
-  # Писать в чат, когда подозрение выше этого процента.
+  # Send a chat message when suspicion is above this percent.
   threshold-percent: 60.0
-  # Антиспам для одного игрока.
+  # Anti-spam cooldown per player.
   cooldown-ms: 10000
-  # Показывать уверенность модели, если модель ее вернула.
+  # Show model confidence when the model returns it.
   include-confidence: true
 
 punishment:
-  # По умолчанию выключено, чтобы свежая/необученная модель не наказала честного игрока.
+  # Disabled by default so a fresh or untrained model does not punish honest players.
   enabled: false
-  # Процент для запуска команд наказания.
+  # Percent threshold to trigger punishment commands.
   threshold-percent: 80.0
-  # Сколько последних окон хранить для решения.
+  # How many recent windows to keep for decision making.
   sample-size: 10
-  # Сколько из последних окон должны быть классом cheater.
+  # How many of the recent windows must be classified as cheater.
   required-cheat-windows: 8
-  # Антиспам наказаний для одного игрока.
+  # Anti-spam cooldown for punishments per player.
   cooldown-ms: 60000
-  # Команды выполняются от консоли. Доступны {player}, {uuid}, {percent}, {confidence}, {model}.
+  # Commands run from the console. Available placeholders: {player}, {uuid}, {percent}, {confidence}, {model}.
   commands:
-    - "kick {player} LumoAiDetector: подозрение {percent}%"
-  # Если все окна в буфере дали cheater, игрок засчитывается в статистику 100%.
+    - "kick {player} LumoAiDetector: suspicion {percent}%"
+  # If all windows in the buffer are cheater, the player is counted as 100% in statistics.
   mark-100-percent: true
 
 recording:
-  # Создавать заголовок dataset.csv автоматически, если файла нет.
+  # Automatically create the dataset.csv header if the file does not exist.
   write-header-if-missing: true
-  # Папка датасета внутри plugins/LumoAiDetector.
+  # Dataset path inside plugins/LumoAiDetector.
   dataset-path: "data/dataset.csv"
 
 training:
-  # Минимум строк для старта обучения.
+  # Minimum rows required to start training.
   min-total-rows: 100
-  # Минимум честных строк.
+  # Minimum legit rows.
   min-legit-rows: 25
-  # Минимум читерских строк.
+  # Minimum cheater rows.
   min-cheater-rows: 25
-  # Процент датасета для быстрой проверки качества.
+  # Percentage of the dataset held out for quick validation.
   validation-percent: 20
-  # Деревья Random Forest. 100 обычно достаточно быстро и стабильно.
+  # Random Forest trees. 100 is usually fast and stable.
   random-forest-trees: 100
-  # 0 означает sqrt(120). Можно указать вручную, например 10 или 11.
+  # 0 means sqrt(120). Can be set manually, e.g. 10 or 11.
   random-features: 0
-  # Ограничение листьев дерева, чтобы модель не раздувалась.
+  # Leaf limit per tree to keep the model from bloating.
   max-nodes: 100
-  # Минимальный размер листа дерева.
+  # Minimum leaf size.
   node-size: 5
-  # Как часто писать прогресс обучения администраторам.
+  # How often to broadcast training progress to admins.
   progress-interval-seconds: 5
 
 models:
-  # Автоматически включать новую модель после успешного обучения.
+  # Automatically activate a new model after successful training.
   auto-activate-after-training: true
-  # Модель для автозагрузки при старте, если runtime.yml еще не создан.
+  # Model to load on startup if runtime.yml has not been created yet.
   active-model: ""
-  # Сколько часов хранить удаленные модели в backups.
+  # How many hours to keep deleted models in backups.
   backup-retention-hours: 72
-  # Максимум временных бекапов моделей.
+  # Maximum number of temporary model backups.
   max-backups: 20
 
 performance:
-  # Период автосохранения stats.yml.
+  # Auto-save interval for stats.yml.
   save-stats-interval-seconds: 60
-  # Максимум состояний игроков в памяти. Старые оффлайн-состояния очищаются.
+  # Maximum player states in memory. Old offline states are cleaned up.
   max-player-states: 500
