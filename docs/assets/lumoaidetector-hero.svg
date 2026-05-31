@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="LumoAiDetector hero">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.55" stop-color="#0d2238"/>
+      <stop offset="1" stop-color="#101827"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4aa3ff"/>
+      <stop offset="1" stop-color="#9fd2ff"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="420" rx="26" fill="url(#bg)"/>
+  <g opacity="0.18">
+    <path d="M86 326 C221 228 327 318 452 226 S699 147 828 218 S1066 304 1196 201" fill="none" stroke="#7dc4ff" stroke-width="2"/>
+    <path d="M72 276 C214 179 317 252 447 166 S689 111 847 166 S1080 260 1208 133" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+    <path d="M0 370 H1280 M0 320 H1280 M0 270 H1280 M0 220 H1280 M0 170 H1280 M0 120 H1280" stroke="#ffffff" stroke-width="1"/>
+    <path d="M160 0 V420 M320 0 V420 M480 0 V420 M640 0 V420 M800 0 V420 M960 0 V420 M1120 0 V420" stroke="#ffffff" stroke-width="1"/>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="70" y="78" width="530" height="264" rx="22" fill="#0c1728" stroke="#2d5f92"/>
+    <text x="108" y="140" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="54" font-weight="800">LumoAiDetector</text>
+    <text x="111" y="183" fill="#9fd2ff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24">AI rotation analysis for Minecraft combat</text>
+    <text x="111" y="231" fill="#dbeafe" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="21">Record your own dataset. Train locally. Alert staff.</text>
+    <text x="111" y="270" fill="#dbeafe" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="21">No Python service. No private paid model required.</text>
+    <rect x="111" y="296" width="116" height="34" rx="17" fill="#12395d" stroke="#4aa3ff"/>
+    <text x="133" y="319" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Free</text>
+    <rect x="243" y="296" width="152" height="34" rx="17" fill="#12395d" stroke="#4aa3ff"/>
+    <text x="265" y="319" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Gradle ready</text>
+    <rect x="411" y="296" width="130" height="34" rx="17" fill="#12395d" stroke="#4aa3ff"/>
+    <text x="434" y="319" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Java 8</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="676" y="70" width="500" height="280" rx="22" fill="#0c1728" stroke="#2d5f92"/>
+    <text x="716" y="119" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="800">Live detection loop</text>
+    <g font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" fill="#eaf4ff">
+      <rect x="716" y="151" width="160" height="48" rx="12" fill="#102b46" stroke="#4aa3ff"/>
+      <text x="746" y="181">combat gate</text>
+      <rect x="924" y="151" width="160" height="48" rx="12" fill="#102b46" stroke="#4aa3ff"/>
+      <text x="956" y="181">target gate</text>
+      <rect x="716" y="232" width="160" height="48" rx="12" fill="#102b46" stroke="#4aa3ff"/>
+      <text x="741" y="262">15 tick window</text>
+      <rect x="924" y="232" width="160" height="48" rx="12" fill="#102b46" stroke="#4aa3ff"/>
+      <text x="960" y="262">model vote</text>
+    </g>
+    <path d="M876 175 H924 M1004 199 V232 M924 256 H876 M796 232 V199" fill="none" stroke="url(#line)" stroke-width="5" stroke-linecap="round"/>
+    <text x="716" y="319" fill="#9fd2ff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">8 of 10 cheat windows can trigger actions</text>
+  </g>
+</svg>

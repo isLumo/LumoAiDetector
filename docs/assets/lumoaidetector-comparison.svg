@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="390" viewBox="0 0 1280 390" role="img" aria-label="LumoAiDetector comparison">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#10243a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="390" rx="24" fill="url(#bg)"/>
+  <text x="54" y="62" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Why this plugin is different</text>
+  <text x="54" y="96" fill="#9fd2ff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="19">It does not ship a mystery model. Your server teaches the detector what your PvP really looks like.</text>
+  <g font-family="Inter, Segoe UI, Arial, sans-serif">
+    <rect x="54" y="136" width="560" height="188" rx="18" fill="#0c1728" stroke="#2d5f92"/>
+    <text x="90" y="181" fill="#ffffff" font-size="24" font-weight="800">Typical free checks</text>
+    <text x="90" y="220" fill="#cfe8ff" font-size="18">Fixed thresholds</text>
+    <text x="90" y="252" fill="#cfe8ff" font-size="18">Hard to tune for every client and server</text>
+    <text x="90" y="284" fill="#cfe8ff" font-size="18">Often noisy when combat is messy</text>
+    <rect x="666" y="136" width="560" height="188" rx="18" fill="#0c1728" stroke="#4aa3ff"/>
+    <text x="702" y="181" fill="#ffffff" font-size="24" font-weight="800">LumoAiDetector</text>
+    <text x="702" y="220" fill="#cfe8ff" font-size="18">Learns from your own dataset</text>
+    <text x="702" y="252" fill="#cfe8ff" font-size="18">Uses GCD normalized mouse features</text>
+    <text x="702" y="284" fill="#cfe8ff" font-size="18">Requires combat, target, movement and ping gates</text>
+  </g>
+  <text x="54" y="356" fill="#9fd2ff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17">Better data matters more than magic. Train on many legit players and many cheat settings.</text>
+</svg>

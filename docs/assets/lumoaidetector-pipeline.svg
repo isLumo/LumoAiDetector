@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="LumoAiDetector pipeline">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#10243a"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2 2 L10 6 L2 10 Z" fill="#63b3ff"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+  <text x="54" y="62" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">How it learns</text>
+  <text x="54" y="96" fill="#9fd2ff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="19">The server owner records real fights, trains a local Random Forest model, then activates the model in game.</text>
+  <g font-family="Inter, Segoe UI, Arial, sans-serif">
+    <g>
+      <rect x="56" y="148" width="190" height="112" rx="18" fill="#0c1728" stroke="#2d5f92"/>
+      <text x="88" y="190" fill="#ffffff" font-size="22" font-weight="700">1. Record</text>
+      <text x="88" y="222" fill="#cfe8ff" font-size="16">legit and cheater</text>
+      <text x="88" y="244" fill="#cfe8ff" font-size="16">combat windows</text>
+    </g>
+    <g>
+      <rect x="306" y="148" width="190" height="112" rx="18" fill="#0c1728" stroke="#2d5f92"/>
+      <text x="338" y="190" fill="#ffffff" font-size="22" font-weight="700">2. Filter</text>
+      <text x="338" y="222" fill="#cfe8ff" font-size="16">combat, target,</text>
+      <text x="338" y="244" fill="#cfe8ff" font-size="16">mouse and ping</text>
+    </g>
+    <g>
+      <rect x="556" y="148" width="190" height="112" rx="18" fill="#0c1728" stroke="#2d5f92"/>
+      <text x="588" y="190" fill="#ffffff" font-size="22" font-weight="700">3. Train</text>
+      <text x="588" y="222" fill="#cfe8ff" font-size="16">Smile Random Forest</text>
+      <text x="588" y="244" fill="#cfe8ff" font-size="16">inside Java</text>
+    </g>
+    <g>
+      <rect x="806" y="148" width="190" height="112" rx="18" fill="#0c1728" stroke="#2d5f92"/>
+      <text x="838" y="190" fill="#ffffff" font-size="22" font-weight="700">4. Activate</text>
+      <text x="838" y="222" fill="#cfe8ff" font-size="16">load a dated model</text>
+      <text x="838" y="244" fill="#cfe8ff" font-size="16">with metadata</text>
+    </g>
+    <g>
+      <rect x="1056" y="148" width="170" height="112" rx="18" fill="#0c1728" stroke="#2d5f92"/>
+      <text x="1088" y="190" fill="#ffffff" font-size="22" font-weight="700">5. Alert</text>
+      <text x="1088" y="222" fill="#cfe8ff" font-size="16">staff sees percent</text>
+      <text x="1088" y="244" fill="#cfe8ff" font-size="16">without spam</text>
+    </g>
+  </g>
+  <path d="M246 204 H292" stroke="#63b3ff" stroke-width="4" marker-end="url(#arrow)"/>
+  <path d="M496 204 H542" stroke="#63b3ff" stroke-width="4" marker-end="url(#arrow)"/>
+  <path d="M746 204 H792" stroke="#63b3ff" stroke-width="4" marker-end="url(#arrow)"/>
+  <path d="M996 204 H1042" stroke="#63b3ff" stroke-width="4" marker-end="url(#arrow)"/>
+</svg>
