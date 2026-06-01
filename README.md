@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/isLumo/LumoAiDetector/releases"><img alt="Release" src="https://img.shields.io/badge/version-0.0.1-2f81f7?style=for-the-badge"></a>
+  <a href="https://github.com/isLumo/LumoAiDetector/actions/workflows/gradle.yml"><img alt="Build" src="https://github.com/isLumo/LumoAiDetector/actions/workflows/gradle.yml/badge.svg"></a>
+  <a href="https://github.com/isLumo/LumoAiDetector/releases"><img alt="Release" src="https://img.shields.io/github/v/release/isLumo/LumoAiDetector?style=for-the-badge"></a>
   <a href="https://github.com/isLumo/LumoAiDetector/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-2f81f7?style=for-the-badge"></a>
   <img alt="Java" src="https://img.shields.io/badge/java-8+-2f81f7?style=for-the-badge">
   <img alt="Gradle" src="https://img.shields.io/badge/build-Gradle-2f81f7?style=for-the-badge">
@@ -18,6 +19,8 @@
   <a href="#training-your-own-model">Training</a>
   ·
   <a href="#configuration">Config</a>
+  ·
+  <a href="#changelog">Changelog</a>
   ·
   <a href="#license-and-forks">License</a>
 </p>
@@ -87,16 +90,35 @@ If you only record one legit player and one cheat profile, you are teaching the 
 - Staff alerts above the configured suspicion percent.
 - Permission based tab complete.
 - Auto punishment support is present, but disabled by default.
+- SHA-256 model integrity verification on load.
+- F1-score in training metrics.
+- Alert history per player.
 
 ## Install
 
 1. Build the jar.
-2. Put `build/libs/LumoAiDetector-0.0.1.jar` into your server `plugins` folder.
+2. Put `build/libs/LumoAiDetector-0.1.0.jar` into your server `plugins` folder.
 3. Start the server once.
 4. Edit `plugins/LumoAiDetector/config.yml` only if you know what you want to tune.
 5. Edit `plugins/LumoAiDetector/messages.yml` if you want different text.
 
-## Build in IntelliJ IDEA
+Pre-built jars are available on the [Releases](https://github.com/isLumo/LumoAiDetector/releases) page.
+
+## Build
+
+### Linux / macOS
+
+```bash
+chmod +x build.sh && ./build.sh
+```
+
+### Windows
+
+```powershell
+.\build.ps1
+```
+
+### IntelliJ IDEA
 
 Open the folder as a Gradle project:
 
@@ -113,7 +135,7 @@ Gradle -> Tasks -> shadow -> shadowJar
 The plugin jar will be here:
 
 ```text
-build/libs/LumoAiDetector-0.0.1.jar
+build/libs/LumoAiDetector-0.1.0.jar
 ```
 
 Console build:
@@ -124,38 +146,65 @@ gradle clean shadowJar
 
 ## Commands
 
-```text
-/lad reload
-/lad status
-/lad record legit <player>
-/lad record cheater <player>
-/lad record info [all|legit|cheater] [page]
-/lad train
-/lad active <model>
-/lad deactive
-/lad check <player>
-/lad models [page]
-/lad deleted <model>
-/lad backup list [page]
-/lad backup restore <backup>
-/lad backup purge <backup>
-```
+### Recording
+
+| Command | Description |
+|---|---|
+| `/lad record legit <player>` | Start recording legit data. |
+| `/lad record cheater <player>` | Start recording cheater data. |
+| `/lad record stop <player>` | Stop recording a specific player. |
+| `/lad record stop all` | Stop all active recordings immediately. |
+| `/lad record info [all\|legit\|cheater] [page]` | List active recordings with stop buttons. |
+
+### Models
+
+| Command | Description |
+|---|---|
+| `/lad train` | Train a model on the current dataset. |
+| `/lad active <model>` | Load and activate a model. |
+| `/lad deactivate` | Disable the active model. |
+| `/lad models [page]` | List trained models with active/delete buttons. |
+| `/lad models info <model>` | Show detailed model metrics (accuracy, precision, recall, F1). |
+| `/lad delete <model>` | Move a model to temporary backup. |
+
+### Backups
+
+| Command | Description |
+|---|---|
+| `/lad backup list [page]` | List model backups with restore/purge buttons. |
+| `/lad backup restore <backup>` | Restore a model from backup. |
+| `/lad backup purge <backup>` | Permanently delete a backup. |
+
+### Checks and status
+
+| Command | Description |
+|---|---|
+| `/lad check <player>` | Check current suspicion percentage for a player. |
+| `/lad check <player> history` | View recent alert history for a player. |
+| `/lad status` | Show plugin, detector, model, dataset and recording status. |
+| `/lad dataset info` | Show dataset row count, class balance and file size. |
+
+### Other
+
+| Command | Description |
+|---|---|
+| `/lad reload` | Reload configs and messages. |
+| `/lad help` | Show all available commands. |
 
 ## Permissions
 
 ```text
-LumoAiDetector.admin
-LumoAiDetector.reload
-LumoAiDetector.status
-LumoAiDetector.record
-LumoAiDetector.train
-LumoAiDetector.active
-LumoAiDetector.deactive
-LumoAiDetector.check
-LumoAiDetector.models
-LumoAiDetector.delete
-LumoAiDetector.backup
-LumoAiDetector.alert
+LumoAiDetector.admin        - Bypass all permission checks.
+LumoAiDetector.reload       - /lad reload
+LumoAiDetector.status       - /lad status, /lad dataset info
+LumoAiDetector.record       - /lad record
+LumoAiDetector.train        - /lad train
+LumoAiDetector.active       - /lad active, /lad deactivate
+LumoAiDetector.check        - /lad check
+LumoAiDetector.models       - /lad models, /lad models info
+LumoAiDetector.delete       - /lad delete
+LumoAiDetector.backup       - /lad backup
+LumoAiDetector.alert        - Receive alert messages.
 ```
 
 ## Training your own model
@@ -190,7 +239,7 @@ Activate:
 /lad active <model>
 ```
 
-The plugin names models by date and time. Metadata is saved next to every model, so you can see training time, dataset size and basic metrics.
+The plugin names models by date and time. Metadata is saved next to every model, so you can see training time, dataset size, accuracy, precision, recall, F1 and more.
 
 ## Configuration
 
@@ -210,6 +259,24 @@ plugins/LumoAiDetector/stats.yml
 plugins/LumoAiDetector/runtime.yml
 ```
 
+## Changelog
+
+### 0.1.0 (2026-06-02)
+
+Major stabilization release. See the [full changelog](https://github.com/isLumo/LumoAiDetector/releases/tag/v0.1.0).
+
+Key changes:
+- Async IO for model loading and dataset snapshots - no more main thread freezes.
+- Fixed race conditions in player state maps and thread safety in formatting.
+- Optimized dataset writing with a cached buffered writer and row limits.
+- SHA-256 verification when loading models to detect tampering.
+- Renamed `/lad deactive` to `/lad deactivate` and `/lad deleted` to `/lad delete` with backward-compatible aliases.
+- New commands: `/lad record stop all`, `/lad dataset info`, `/lad models info`, `/lad check history`.
+- F1-score is now computed and displayed after training.
+- Separate training executor prevents progress messages from blocking.
+- build.sh for Linux and macOS.
+- CI/CD build badge in README.
+
 ## License and forks
 
 LumoAiDetector is licensed under Apache License 2.0.
@@ -224,6 +291,6 @@ Unofficial forks should use a clearly different name and say that they are based
 
 ## Current status
 
-Version `0.0.1` is the first public source release. Test it on a local server before using it on production. Keep backups of models and datasets. If something breaks, open an issue with server version, Java version, plugin version, logs, config changes and what command or combat action caused the problem.
+Version `0.1.0` is a major stability release. Test it on a local server before using it on production. Keep backups of models and datasets. If something breaks, open an issue with server version, Java version, plugin version, logs, config changes and what command or combat action caused the problem.
 
 This project is free. I want it to stay useful, understandable and honest.

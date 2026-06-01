@@ -11,6 +11,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -19,6 +22,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import smile.classification.RandomForest;
 
 public final class ModelRepository {
+    private static final int MAX_NAME_LENGTH = 128;
     private final LumoAiDetectorPlugin plugin;
     private volatile PluginSettings settings;
 
@@ -131,13 +135,27 @@ public final class ModelRepository {
         try (ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(modelFile))) {
             output.writeObject(model);
         }
+        String sha256 = computeSha256(modelFile);
         metadata.save(metadataFile(modelsDir(), metadata.name()));
+        YamlConfiguration metaConfig = YamlConfiguration.loadConfiguration(metadataFile(modelsDir(), metadata.name()));
+        metaConfig.set("sha256", sha256);
+        metaConfig.save(metadataFile(modelsDir(), metadata.name()));
     }
 
     public ModelBundle loadModel(String rawName) throws IOException, ClassNotFoundException {
         ModelInfo info = findModel(rawName);
         if (info == null) {
             return null;
+        }
+        String currentSha = computeSha256(info.modelFile());
+        File metadataFile = info.metadataFile();
+        if (metadataFile.exists()) {
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(metadataFile);
+            String storedSha = config.getString("sha256", "");
+            if (!storedSha.isEmpty() && !storedSha.equals(currentSha)) {
+                plugin.getLogger().warning("SHA-256 mismatch for model " + rawName + ". File may have been tampered with.");
+                throw new IOException("Model file SHA-256 mismatch: possible tampering detected");
+            }
         }
         try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(info.modelFile()))) {
             Object object = input.readObject();
@@ -222,6 +240,28 @@ public final class ModelRepository {
         }
     }
 
+    public String computeSha256(File file) {
+        if (!file.exists()) {
+            return "";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (DigestInputStream dis = new DigestInputStream(new FileInputStream(file), digest)) {
+                byte[] buffer = new byte[8192];
+                while (dis.read(buffer) != -1) {
+                }
+            }
+            byte[] hash = digest.digest();
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException | IOException exception) {
+            return "";
+        }
+    }
+
     private String uniqueModelName(String base) {
         String clean = cleanName(base);
         if (clean == null || clean.isEmpty()) {
@@ -248,6 +288,9 @@ public final class ModelRepository {
         String name = rawName.trim().replace('\\', '/');
         if (name.contains("/") || name.contains("..")) {
             return null;
+        }
+        if (name.length() > MAX_NAME_LENGTH) {
+            name = name.substring(0, MAX_NAME_LENGTH);
         }
         if (name.endsWith(".bin")) {
             name = stripBin(name);

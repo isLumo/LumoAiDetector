@@ -4,8 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -15,8 +13,8 @@ public final class DatasetCsv {
     public static final int VALUES_PER_TICK = 8;
     public static final int FEATURE_COUNT = WINDOW_SIZE * VALUES_PER_TICK;
     public static final int COLUMN_COUNT = FEATURE_COUNT + 1;
+    public static final int MAX_ROWS = 500000;
     private static final String[] NAMES = new String[]{"dx", "dy", "dt", "v", "a", "j", "err", "derr"};
-    private static final DecimalFormat DECIMAL = new DecimalFormat("0.########", DecimalFormatSymbols.getInstance(Locale.US));
 
     private DatasetCsv() {
     }
@@ -44,13 +42,17 @@ public final class DatasetCsv {
             if (i > 0) {
                 builder.append(',');
             }
-            builder.append(DECIMAL.format(features[i]));
+            builder.append(String.format(Locale.US, "%.8f", features[i]));
         }
         builder.append(',').append(label.classValue());
         return builder.toString();
     }
 
     public static DatasetSnapshot read(File file) throws IOException {
+        return read(file, 0);
+    }
+
+    public static DatasetSnapshot read(File file, int maxRows) throws IOException {
         if (!file.exists()) {
             return new DatasetSnapshot(new double[0][0], new int[0], 0, 0, 0);
         }
@@ -63,6 +65,10 @@ public final class DatasetCsv {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty() || line.startsWith("dx_1,")) {
+                    continue;
+                }
+                if (maxRows > 0 && features.size() >= maxRows) {
+                    skipped++;
                     continue;
                 }
                 String[] parts = line.split(",", -1);

@@ -9,9 +9,11 @@ import com.lumskyy.lumoaidetector.ml.PredictionResult;
 import com.lumskyy.lumoaidetector.platform.Platform;
 import com.lumskyy.lumoaidetector.storage.StatsService;
 import com.lumskyy.lumoaidetector.util.Formats;
+import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -27,6 +29,8 @@ public final class DetectionService {
     private final ModelService modelService;
     private final StatsService statsService;
     private final Map<UUID, PlayerSampleState> states = new ConcurrentHashMap<UUID, PlayerSampleState>();
+    private final Map<UUID, ArrayDeque<String>> alertHistory = new ConcurrentHashMap<UUID, ArrayDeque<String>>();
+    private static final int MAX_ALERT_HISTORY = 50;
 
     public DetectionService(PluginSettings settings, MessageService messages, Platform platform, RecordingService recordingService, ModelService modelService, StatsService statsService) {
         this.settings = settings;
@@ -63,6 +67,11 @@ public final class DetectionService {
             }
             return new CheckResult(true, state.lastPercent, state.tracker().windows(), state.lastConfidence, state.lastModel);
         }
+    }
+
+    public ArrayDeque<String> alertHistory(Player player) {
+        ArrayDeque<String> history = alertHistory.get(player.getUniqueId());
+        return history == null ? new ArrayDeque<String>() : history;
     }
 
     public void handleMove(PlayerMoveEvent event) {
@@ -170,12 +179,27 @@ public final class DetectionService {
         statsService.incrementAnalyzed();
         if (alert) {
             statsService.incrementAlerts();
-            platform.broadcastPermission("LumoAiDetector.alert", messages.get("alert.chat", messages.placeholders("player", player.getName(), "percent", Formats.percent(percent), "confidence", Formats.percent(prediction.confidencePercent()), "model", prediction.modelName())));
+            String alertMsg = messages.get("alert.chat", messages.placeholders("player", player.getName(), "percent", Formats.percent(percent), "confidence", Formats.percent(prediction.confidencePercent()), "model", prediction.modelName()));
+            platform.broadcastPermission("LumoAiDetector.alert", alertMsg);
+            addAlertEntry(player, alertMsg);
         }
         if (punish) {
             for (String command : localSettings.punishmentCommands) {
                 platform.dispatchConsoleCommand(replacePunishment(command, player, percent, prediction));
             }
+        }
+    }
+
+    private void addAlertEntry(Player player, String message) {
+        ArrayDeque<String> history = alertHistory.computeIfAbsent(player.getUniqueId(), new java.util.function.Function<UUID, ArrayDeque<String>>() {
+            @Override
+            public ArrayDeque<String> apply(UUID uuid) {
+                return new ArrayDeque<String>();
+            }
+        });
+        history.addLast(message);
+        while (history.size() > MAX_ALERT_HISTORY) {
+            history.removeFirst();
         }
     }
 
@@ -189,15 +213,24 @@ public final class DetectionService {
     }
 
     private PlayerSampleState state(Player player) {
+        pruneStatesIfNeeded();
+        return states.computeIfAbsent(player.getUniqueId(), new java.util.function.Function<UUID, PlayerSampleState>() {
+            @Override
+            public PlayerSampleState apply(UUID uuid) {
+                return new PlayerSampleState();
+            }
+        });
+    }
+
+    private void pruneStatesIfNeeded() {
         if (states.size() > settings.maxPlayerStates) {
-            states.clear();
+            states.keySet().removeIf(new java.util.function.Predicate<UUID>() {
+                @Override
+                public boolean test(UUID uuid) {
+                    return Bukkit.getPlayer(uuid) == null;
+                }
+            });
         }
-        PlayerSampleState state = states.get(player.getUniqueId());
-        if (state == null) {
-            state = new PlayerSampleState();
-            states.put(player.getUniqueId(), state);
-        }
-        return state;
     }
 
     private TargetInfo target(Player player, double radius) {

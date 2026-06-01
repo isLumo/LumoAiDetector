@@ -8,24 +8,34 @@ import org.bukkit.configuration.file.YamlConfiguration;
 public final class RuntimeStateService {
     private final LumoAiDetectorPlugin plugin;
     private final File file;
+    private volatile String cachedModel = "";
 
     public RuntimeStateService(LumoAiDetectorPlugin plugin) {
         this.plugin = plugin;
         this.file = new File(plugin.getDataFolder(), "runtime.yml");
+        this.cachedModel = loadModel();
     }
 
     public String activeModel() {
+        return cachedModel;
+    }
+
+    public void setActiveModel(String model) {
+        cachedModel = model == null ? "" : model;
+        save();
+    }
+
+    private String loadModel() {
+        if (!file.exists()) {
+            return "";
+        }
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
         return config.getString("active-model", "");
     }
 
-    public void setActiveModel(String model) {
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        config.set("active-model", model == null ? "" : model);
-        save(config);
-    }
-
-    private void save(YamlConfiguration config) {
+    private void save() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("active-model", cachedModel);
         File parent = file.getParentFile();
         if (parent != null && !parent.exists()) {
             parent.mkdirs();

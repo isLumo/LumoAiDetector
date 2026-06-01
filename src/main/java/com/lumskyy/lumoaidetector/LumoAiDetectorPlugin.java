@@ -26,6 +26,7 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
     private Platform platform;
     private ExecutorService ioExecutor;
     private ScheduledExecutorService timerExecutor;
+    private ExecutorService trainExecutor;
     private StatsService statsService;
     private DatasetService datasetService;
     private RecordingService recordingService;
@@ -45,6 +46,7 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         this.platform = new Platform(this);
         this.ioExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("LumoAiDetector-IO"));
         this.timerExecutor = Executors.newScheduledThreadPool(2, new NamedThreadFactory("LumoAiDetector-Timer"));
+        this.trainExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("LumoAiDetector-Train"));
         this.statsService = new StatsService(this);
         this.statsService.load();
         this.statsService.startAutoSave(timerExecutor, settings);
@@ -52,9 +54,9 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         this.recordingService = new RecordingService(datasetService);
         this.modelRepository = new ModelRepository(this, settings);
         this.runtimeStateService = new RuntimeStateService(this);
-        this.modelService = new ModelService(this, settings, messages, platform, modelRepository, runtimeStateService, timerExecutor, statsService);
+        this.modelService = new ModelService(this, settings, messages, platform, modelRepository, runtimeStateService, timerExecutor, trainExecutor, statsService);
         this.detectionService = new DetectionService(settings, messages, platform, recordingService, modelService, statsService);
-        getServer().getPluginManager().registerEvents(new DetectionListener(detectionService), this);
+        getServer().getPluginManager().registerEvents(new DetectionListener(detectionService, this), this);
         LadCommand ladCommand = new LadCommand(this);
         PluginCommand command = getCommand("lad");
         if (command != null) {
@@ -75,6 +77,9 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         }
         if (timerExecutor != null) {
             timerExecutor.shutdownNow();
+        }
+        if (trainExecutor != null) {
+            trainExecutor.shutdownNow();
         }
         if (ioExecutor != null) {
             ioExecutor.shutdown();

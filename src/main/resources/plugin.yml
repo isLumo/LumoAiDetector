@@ -23,7 +23,7 @@ permissions:
     default: op
   LumoAiDetector.active:
     default: op
-  LumoAiDetector.deactive:
+  LumoAiDetector.deactivate:
     default: op
   LumoAiDetector.check:
     default: op

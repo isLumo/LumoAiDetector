@@ -17,10 +17,13 @@ help:
   line-record-info: "&7- &9/lad record info [all|legit|cheater] [page] &7- &fview active recordings."
   line-train: "&7- &9/lad train &7- &ftrain a model on dataset.csv."
   line-active: "&7- &9/lad active <model> &7- &fload a model."
-  line-deactive: "&7- &9/lad deactive &7- &fdisable the active model."
-  line-check: "&7- &9/lad check <player> &7- &fcheck the current suspicion percent."
+  line-deactive: "&7- &9/lad deactivate &7- &fdisable the active model."
+  line-check: "&7- &9/lad check <player> [history] &7- &fcheck suspicion or view alert history."
   line-models: "&7- &9/lad models [page] &7- &flist trained models."
-  line-deleted: "&7- &9/lad deleted <model> &7- &fmove a model to temporary backup."
+  line-models-info: "&7- &9/lad models info <model> &7- &fview model details."
+  line-dataset: "&7- &9/lad dataset info &7- &fdataset info and stats."
+  line-record-stop: "&7- &9/lad record stop <player|all> &7- &fstop one or all recordings."
+  line-deleted: "&7- &9/lad delete <model> &7- &fmove a model to temporary backup."
   line-backup: "&7- &9/lad backup [list|restore|purge] &7- &fmanage backups."
 
 reload:
@@ -46,12 +49,13 @@ record:
   info-entry: "&7- &9{player} &7- &fclass &9{label}&f, windows &9{windows}&f, time &9{time}&f."
   button-stop: " &7[&9stop&7]"
   hover-stop: "&fStop recording &9{player}&f."
+  stopped-all: "{prefix} &fAll recordings stopped. Players affected: &9{count}&f."
 
 train:
   already: "{prefix} &fTraining is already running. Phase: &9{phase}&f, elapsed: &9{elapsed}&f."
   started: "{prefix} &fTraining started. Rows: &9{rows}&f."
   progress: "{prefix} &fTraining in progress. Phase: &9{phase}&f, elapsed: &9{elapsed}&f."
-  success: "{prefix} &fModel &9{model}&f trained in &9{time}&f. Accuracy &9{accuracy}%&f, Precision &9{precision}%&f, Recall &9{recall}%&f."
+  success: "{prefix} &fModel &9{model}&f trained in &9{time}&f. Accuracy &9{accuracy}%&f, Precision &9{precision}%&f, Recall &9{recall}%&f, F1 &9{f1}%&f."
   failed: "{prefix} &fTraining stopped: &9{reason}&f."
   not-enough-data: "{prefix} &fNot enough data: total &9{rows}&f, legit &9{legit}&f, cheater &9{cheater}&f."
 
@@ -63,14 +67,18 @@ model:
   error: "{prefix} &fModel error &9{model}&f: &9{error}&f."
   list-header: "{prefix} &fModels page &9{page}&7/&9{pages}&f:"
   list-empty: "{prefix} &fNo models yet. Use &9/lad train&f."
+  info-not-found: "{prefix} &fModel &9{model}&f not found."
   list-entry: "&7- &9{model} &7- &fsize &9{size}&f, rows &9{rows}&f, accuracy &9{accuracy}%&f, created &9{created}&f."
   list-entry-active: "&7- &9{model} &7(&9active&7) &7- &fsize &9{size}&f, rows &9{rows}&f, accuracy &9{accuracy}%&f, created &9{created}&f."
+  info-header: "{prefix} &fModel info: &9{model}&f"
+  info-entry: "&7Accuracy: &9{accuracy}%&f, Precision: &9{precision}%&f, Recall: &9{recall}%&f, F1: &9{f1}%&f"
+  info-data: "&7Rows: &9{rows}&f, Trees: &9{trees}&f, Features: &9{features}&f, Version: &9{version}&f"
   button-active: " &7[&9active&7]"
   button-delete: " &7[&9delete&7]"
   hover-active: "&fActivate model &9{model}&f."
   hover-delete: "&fMove model &9{model}&f to temporary backup."
   deleted: "{prefix} &fModel &9{model}&f moved to backup &9{backup}&f."
-  already-active: "{prefix} &fModel &9{model}&f is already active. Disable it first with &9/lad deactive&f."
+  already-active: "{prefix} &fModel &9{model}&f is already active. Disable it first with &9/lad deactivate&f."
 
 backup:
   usage: "{prefix} &fUse &9/lad backup list&f, &9/lad backup restore <backup>&f or &9/lad backup purge <backup>&f."
@@ -87,7 +95,11 @@ backup:
 
 check:
   no-data: "{prefix} &fNo valid windows for player &9{player}&f yet."
+  history-header: "{prefix} &fAlert history for &9{player}&f:"
+  history-entry: "&7- &9{time}&f: suspicion &9{percent}%&f, windows &9{windows}&f."
+  history-empty: "{prefix} &fNo alert history for &9{player}&f."
   result: "{prefix} &fPlayer &9{player}&f: suspicion &9{percent}%&f, windows &9{windows}&f, latest confidence &9{confidence}%&f, model &9{model}&f."
+  result-history: "{prefix} &fLatest suspicion for &9{player}&f: &9{percent}%&f over &9{windows}&f windows."
 
 alert:
   chat: "{prefix} &fPlayer &9{player}&f suspicion &9{percent}%&f, confidence &9{confidence}%&f, model &9{model}&f."

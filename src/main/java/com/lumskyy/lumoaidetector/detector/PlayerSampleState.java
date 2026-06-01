@@ -84,6 +84,8 @@ public final class PlayerSampleState {
 
     public void clearWindow() {
         window.clear();
+        gcdValues.clear();
+        initialized = false;
     }
 
     public PredictionTracker tracker() {

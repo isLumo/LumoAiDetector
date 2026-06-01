@@ -11,8 +11,10 @@ import com.lumskyy.lumoaidetector.ml.ActivationResult;
 import com.lumskyy.lumoaidetector.ml.BackupInfo;
 import com.lumskyy.lumoaidetector.ml.DeleteResult;
 import com.lumskyy.lumoaidetector.ml.ModelInfo;
+import com.lumskyy.lumoaidetector.ml.ModelMetadata;
 import com.lumskyy.lumoaidetector.ml.RestoreResult;
 import com.lumskyy.lumoaidetector.util.Formats;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,7 +60,7 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             if (!require(sender, "LumoAiDetector.status")) {
                 return true;
             }
-            status(sender);
+            statusAsync(sender);
             return true;
         }
         if (sub.equals("record") || sub.equals("recod")) {
@@ -82,8 +84,8 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             active(sender, args);
             return true;
         }
-        if (sub.equals("deactive")) {
-            if (!require(sender, "LumoAiDetector.deactive")) {
+        if (sub.equals("deactive") || sub.equals("deactivate")) {
+            if (!require(sender, "LumoAiDetector.deactivate")) {
                 return true;
             }
             plugin.modelService().deactivate();
@@ -101,7 +103,7 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             if (!require(sender, "LumoAiDetector.models")) {
                 return true;
             }
-            models(sender, page(args, 1));
+            models(sender, args);
             return true;
         }
         if (sub.equals("deleted") || sub.equals("delete") || sub.equals("del")) {
@@ -116,6 +118,13 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             backup(sender, args);
+            return true;
+        }
+        if (sub.equals("dataset") || sub.equals("ds")) {
+            if (!require(sender, "LumoAiDetector.status")) {
+                return true;
+            }
+            dataset(sender, args);
             return true;
         }
         help(sender);
@@ -134,11 +143,12 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             addRoot(sender, roots, "record", "LumoAiDetector.record");
             addRoot(sender, roots, "train", "LumoAiDetector.train");
             addRoot(sender, roots, "active", "LumoAiDetector.active");
-            addRoot(sender, roots, "deactive", "LumoAiDetector.deactive");
+            addRoot(sender, roots, "deactivate", "LumoAiDetector.deactivate");
             addRoot(sender, roots, "check", "LumoAiDetector.check");
             addRoot(sender, roots, "models", "LumoAiDetector.models");
-            addRoot(sender, roots, "deleted", "LumoAiDetector.delete");
+            addRoot(sender, roots, "delete", "LumoAiDetector.delete");
             addRoot(sender, roots, "backup", "LumoAiDetector.backup");
+            addRoot(sender, roots, "dataset", "LumoAiDetector.status");
             return filter(roots, args[0]);
         }
         String sub = args[0].toLowerCase(Locale.US);
@@ -147,10 +157,13 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
                 return Collections.emptyList();
             }
             if (args.length == 2) {
-                return filter(list("legit", "cheater", "info"), args[1]);
+                return filter(list("legit", "cheater", "info", "stop"), args[1]);
             }
             if (args.length == 3 && args[1].equalsIgnoreCase("info")) {
                 return filter(list("all", "legit", "cheater"), args[2]);
+            }
+            if (args.length == 3 && args[1].equalsIgnoreCase("stop")) {
+                return filter(list("all"), args[2]);
             }
             if (args.length == 3) {
                 return filter(players(), args[2]);
@@ -162,17 +175,41 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             }
             return filter(modelNames(), args[1]);
         }
+        if (sub.equals("check") && args.length == 2) {
+            if (!has(sender, "LumoAiDetector.check")) {
+                return Collections.emptyList();
+            }
+            return filter(players(), args[1]);
+        }
+        if (sub.equals("check") && args.length == 3) {
+            if (!has(sender, "LumoAiDetector.check")) {
+                return Collections.emptyList();
+            }
+            return filter(list("history"), args[2]);
+        }
+        if (sub.equals("models") && args.length == 2) {
+            if (!has(sender, "LumoAiDetector.models")) {
+                return Collections.emptyList();
+            }
+            return filter(list("info"), args[1]);
+        }
+        if (sub.equals("models") && args.length == 3 && args[1].equalsIgnoreCase("info")) {
+            if (!has(sender, "LumoAiDetector.models")) {
+                return Collections.emptyList();
+            }
+            return filter(modelNames(), args[2]);
+        }
         if ((sub.equals("deleted") || sub.equals("delete") || sub.equals("del")) && args.length == 2) {
             if (!has(sender, "LumoAiDetector.delete")) {
                 return Collections.emptyList();
             }
             return filter(modelNames(), args[1]);
         }
-        if (sub.equals("check") && args.length == 2) {
-            if (!has(sender, "LumoAiDetector.check")) {
+        if (sub.equals("dataset") && args.length == 2) {
+            if (!has(sender, "LumoAiDetector.status")) {
                 return Collections.emptyList();
             }
-            return filter(players(), args[1]);
+            return filter(list("info"), args[1]);
         }
         if (sub.equals("backup")) {
             if (!has(sender, "LumoAiDetector.backup")) {
@@ -190,35 +227,40 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
 
     private void help(CommandSender sender) {
         messages.send(sender, "help.header");
-        String[] keys = new String[]{"help.line-reload", "help.line-status", "help.line-record", "help.line-record-info", "help.line-train", "help.line-active", "help.line-deactive", "help.line-check", "help.line-models", "help.line-deleted", "help.line-backup"};
+        String[] keys = new String[]{"help.line-reload", "help.line-status", "help.line-record", "help.line-record-info", "help.line-record-stop", "help.line-train", "help.line-active", "help.line-deactive", "help.line-check", "help.line-models", "help.line-models-info", "help.line-deleted", "help.line-dataset", "help.line-backup"};
         for (String key : keys) {
             sender.sendMessage(messages.get(key));
         }
     }
 
-    private void status(CommandSender sender) {
-        DatasetSnapshot snapshot = null;
-        try {
-            snapshot = plugin.datasetService().snapshot();
-        } catch (Exception ignored) {
-        }
-        String active = plugin.modelService().activeModelName();
-        if (active == null || active.isEmpty()) {
-            active = messages.get("model.none-active");
-        }
-        messages.send(sender, "status.header");
-        sender.sendMessage(messages.get("status.version", messages.placeholders("version", plugin.getDescription().getVersion())));
-        sender.sendMessage(messages.get("status.platform", messages.placeholders("server", plugin.platform().serverName(), "folia", plugin.platform().isFolia())));
-        sender.sendMessage(messages.get("status.detector", messages.placeholders("detector", plugin.settings().detectorEnabled ? "on" : "off")));
-        sender.sendMessage(messages.get("status.model", messages.placeholders("model", active)));
-        sender.sendMessage(messages.get("status.training", messages.placeholders("training", plugin.modelService().isTraining() ? "on" : "off", "phase", plugin.modelService().trainingPhase())));
-        sender.sendMessage(messages.get("status.recording", messages.placeholders("recording", plugin.recordingService().activeCount())));
-        if (snapshot == null) {
-            sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", "?", "legit", "?", "cheater", "?")));
-        } else {
-            sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", snapshot.rows(), "legit", snapshot.legitRows(), "cheater", snapshot.cheaterRows())));
-        }
-        sender.sendMessage(messages.get("status.stats", messages.placeholders("analyzed", plugin.statsService().analyzedWindows(), "alerts", plugin.statsService().alerts(), "definite", plugin.statsService().definiteCheaters())));
+    private void statusAsync(final CommandSender sender) {
+        plugin.platform().runGlobal(new Runnable() {
+            @Override
+            public void run() {
+                DatasetSnapshot snapshot = null;
+                try {
+                    snapshot = plugin.datasetService().snapshot();
+                } catch (Exception ignored) {
+                }
+                String active = plugin.modelService().activeModelName();
+                if (active == null || active.isEmpty()) {
+                    active = messages.get("model.none-active");
+                }
+                messages.send(sender, "status.header");
+                sender.sendMessage(messages.get("status.version", messages.placeholders("version", plugin.getDescription().getVersion())));
+                sender.sendMessage(messages.get("status.platform", messages.placeholders("server", plugin.platform().serverName(), "folia", plugin.platform().isFolia())));
+                sender.sendMessage(messages.get("status.detector", messages.placeholders("detector", plugin.settings().detectorEnabled ? "on" : "off")));
+                sender.sendMessage(messages.get("status.model", messages.placeholders("model", active)));
+                sender.sendMessage(messages.get("status.training", messages.placeholders("training", plugin.modelService().isTraining() ? "on" : "off", "phase", plugin.modelService().trainingPhase())));
+                sender.sendMessage(messages.get("status.recording", messages.placeholders("recording", plugin.recordingService().activeCount())));
+                if (snapshot == null) {
+                    sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", "?", "legit", "?", "cheater", "?")));
+                } else {
+                    sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", snapshot.rows(), "legit", snapshot.legitRows(), "cheater", snapshot.cheaterRows())));
+                }
+                sender.sendMessage(messages.get("status.stats", messages.placeholders("analyzed", plugin.statsService().analyzedWindows(), "alerts", plugin.statsService().alerts(), "definite", plugin.statsService().definiteCheaters())));
+            }
+        });
     }
 
     private void record(CommandSender sender, String[] args) {
@@ -230,6 +272,10 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             RecordLabel filter = args.length >= 3 && !args[2].equalsIgnoreCase("all") ? RecordLabel.parse(args[2]) : null;
             int page = page(args, 3);
             recordInfo(sender, filter, page);
+            return;
+        }
+        if (args[1].equalsIgnoreCase("stop")) {
+            recordStop(sender, args);
             return;
         }
         RecordLabel label = RecordLabel.parse(args[1]);
@@ -252,10 +298,36 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
         }
         RecordToggleResult result = plugin.recordingService().toggle(player, label);
         if (result.started()) {
+            if (result.previousLabel() != null) {
+                messages.send(sender, "record.stopped", messages.placeholders("player", player.getName(), "windows", "0"));
+            }
             messages.send(sender, "record.started", messages.placeholders("player", player.getName(), "label", label.id()));
         } else {
             messages.send(sender, "record.stopped", messages.placeholders("player", player.getName(), "windows", result.session().windows()));
         }
+    }
+
+    private void recordStop(CommandSender sender, String[] args) {
+        if (args.length >= 3 && args[2].equalsIgnoreCase("all")) {
+            int count = plugin.recordingService().stopAll();
+            messages.send(sender, "record.stopped-all", messages.placeholders("count", count));
+            return;
+        }
+        Player player;
+        if (args.length >= 3) {
+            player = Bukkit.getPlayer(args[2]);
+        } else if (sender instanceof Player) {
+            player = (Player) sender;
+        } else {
+            messages.send(sender, "record.usage");
+            return;
+        }
+        if (player == null) {
+            messages.send(sender, "common.player-not-found", messages.placeholders("player", args.length >= 3 ? args[2] : ""));
+            return;
+        }
+        plugin.recordingService().stop(player.getUniqueId());
+        messages.send(sender, "record.stopped", messages.placeholders("player", player.getName(), "windows", "0"));
     }
 
     private void recordInfo(CommandSender sender, RecordLabel label, int page) {
@@ -279,19 +351,10 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
 
     private void active(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            models(sender, 1);
+            models(sender, args);
             return;
         }
-        ActivationResult result = plugin.modelService().activate(args[1], false);
-        if (result.status() == ActivationResult.Status.ACTIVATED || result.status() == ActivationResult.Status.ALREADY_ACTIVE) {
-            messages.send(sender, "model.activated", messages.placeholders("model", result.activeName()));
-        } else if (result.status() == ActivationResult.Status.CONFLICT) {
-            messages.send(sender, "model.already-active", messages.placeholders("model", result.activeName()));
-        } else if (result.status() == ActivationResult.Status.NOT_FOUND) {
-            messages.send(sender, "model.not-found", messages.placeholders("model", args[1]));
-        } else {
-            messages.send(sender, "model.error", messages.placeholders("model", args[1], "error", result.error()));
-        }
+        plugin.modelService().activateAsync(sender, args[1]);
     }
 
     private void check(CommandSender sender, String[] args) {
@@ -304,6 +367,18 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             messages.send(sender, "common.player-not-found", messages.placeholders("player", args[1]));
             return;
         }
+        if (args.length >= 3 && args[2].equalsIgnoreCase("history")) {
+            ArrayDeque<String> history = plugin.detectionService().alertHistory(player);
+            if (history.isEmpty()) {
+                messages.send(sender, "check.history-empty", messages.placeholders("player", player.getName()));
+                return;
+            }
+            messages.send(sender, "check.history-header", messages.placeholders("player", player.getName()));
+            for (String entry : history) {
+                sender.sendMessage(entry);
+            }
+            return;
+        }
         CheckResult result = plugin.detectionService().check(player);
         if (!result.available()) {
             messages.send(sender, "check.no-data", messages.placeholders("player", player.getName()));
@@ -312,7 +387,12 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
         messages.send(sender, "check.result", messages.placeholders("player", player.getName(), "percent", Formats.percent(result.percent()), "windows", result.windows(), "confidence", Formats.percent(result.confidence()), "model", result.model()));
     }
 
-    private void models(CommandSender sender, int page) {
+    private void models(CommandSender sender, String[] args) {
+        if (args.length >= 3 && args[1].equalsIgnoreCase("info")) {
+            modelsInfo(sender, args);
+            return;
+        }
+        int page = page(args, 1);
         List<ModelInfo> models = plugin.modelRepository().listModels();
         if (models.isEmpty()) {
             messages.send(sender, "model.list-empty");
@@ -331,14 +411,44 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             String line = messages.get(key, messages.placeholders("model", info.name(), "size", Formats.size(info.size()), "rows", info.metadata().rows(), "accuracy", Formats.percent(info.metadata().accuracy()), "created", Formats.date(info.metadata().createdAt())));
             sendButtons(sender, line,
                     new Button(messages.get("model.button-active"), "/lad active " + info.name(), messages.get("model.hover-active", messages.placeholders("model", info.name()))),
-                    new Button(messages.get("model.button-delete"), "/lad deleted " + info.name(), messages.get("model.hover-delete", messages.placeholders("model", info.name()))));
+                    new Button(messages.get("model.button-delete"), "/lad delete " + info.name(), messages.get("model.hover-delete", messages.placeholders("model", info.name()))));
         }
         pageButtons(sender, "/lad models ", current, pages);
     }
 
+    private void modelsInfo(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            models(sender, args);
+            return;
+        }
+        ModelInfo info = plugin.modelRepository().findModel(args[2]);
+        if (info == null) {
+            messages.send(sender, "model.info-not-found", messages.placeholders("model", args[2]));
+            return;
+        }
+        ModelMetadata meta = info.metadata();
+        messages.send(sender, "model.info-header", messages.placeholders("model", info.name()));
+        sender.sendMessage(messages.get("model.info-entry", messages.placeholders("accuracy", Formats.percent(meta.accuracy()), "precision", Formats.percent(meta.precision()), "recall", Formats.percent(meta.recall()), "f1", Formats.percent(meta.f1()))));
+        sender.sendMessage(messages.get("model.info-data", messages.placeholders("rows", meta.rows(), "trees", meta.treeCount(), "features", meta.featureCount(), "version", meta.pluginVersion())));
+    }
+
+    private void dataset(CommandSender sender, String[] args) {
+        if (args.length < 2 || !args[1].equalsIgnoreCase("info")) {
+            messages.send(sender, "record.usage");
+            return;
+        }
+        try {
+            DatasetSnapshot snap = plugin.datasetService().snapshot();
+            long fileSize = plugin.datasetService().file().length();
+            sender.sendMessage("Dataset: " + snap.rows() + " rows (legit: " + snap.legitRows() + ", cheater: " + snap.cheaterRows() + "), skipped: " + snap.skippedRows() + ", size: " + Formats.size(fileSize));
+        } catch (Exception exception) {
+            messages.send(sender, "model.error", messages.placeholders("model", "dataset", "error", exception.getMessage()));
+        }
+    }
+
     private void delete(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            models(sender, 1);
+            models(sender, args);
             return;
         }
         String active = plugin.modelService().activeModelName();
@@ -433,7 +543,7 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
         if (!(sender instanceof Player)) {
             return true;
         }
-        return sender.hasPermission("LumoAiDetector.admin") || sender.hasPermission("LumoAiDetector.reload") || sender.hasPermission("LumoAiDetector.status") || sender.hasPermission("LumoAiDetector.record") || sender.hasPermission("LumoAiDetector.train") || sender.hasPermission("LumoAiDetector.active") || sender.hasPermission("LumoAiDetector.deactive") || sender.hasPermission("LumoAiDetector.check") || sender.hasPermission("LumoAiDetector.models") || sender.hasPermission("LumoAiDetector.delete") || sender.hasPermission("LumoAiDetector.backup");
+        return sender.hasPermission("LumoAiDetector.admin") || sender.hasPermission("LumoAiDetector.reload") || sender.hasPermission("LumoAiDetector.status") || sender.hasPermission("LumoAiDetector.record") || sender.hasPermission("LumoAiDetector.train") || sender.hasPermission("LumoAiDetector.active") || sender.hasPermission("LumoAiDetector.deactivate") || sender.hasPermission("LumoAiDetector.check") || sender.hasPermission("LumoAiDetector.models") || sender.hasPermission("LumoAiDetector.delete") || sender.hasPermission("LumoAiDetector.backup");
     }
 
     private void addRoot(CommandSender sender, List<String> roots, String value, String permission) {

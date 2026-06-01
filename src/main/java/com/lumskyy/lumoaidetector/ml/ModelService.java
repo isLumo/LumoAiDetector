@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +29,7 @@ public final class ModelService {
     private final ModelRepository repository;
     private final RuntimeStateService runtimeStateService;
     private final ScheduledExecutorService timerExecutor;
+    private final ExecutorService trainExecutor;
     private final StatsService statsService;
     private volatile PluginSettings settings;
     private volatile RandomForest activeModel;
@@ -37,7 +39,7 @@ public final class ModelService {
     private volatile long trainingStartedAt;
     private volatile ScheduledFuture<?> progressTask;
 
-    public ModelService(LumoAiDetectorPlugin plugin, PluginSettings settings, MessageService messages, Platform platform, ModelRepository repository, RuntimeStateService runtimeStateService, ScheduledExecutorService timerExecutor, StatsService statsService) {
+    public ModelService(LumoAiDetectorPlugin plugin, PluginSettings settings, MessageService messages, Platform platform, ModelRepository repository, RuntimeStateService runtimeStateService, ScheduledExecutorService timerExecutor, ExecutorService trainExecutor, StatsService statsService) {
         this.plugin = plugin;
         this.settings = settings;
         this.messages = messages;
@@ -45,6 +47,7 @@ public final class ModelService {
         this.repository = repository;
         this.runtimeStateService = runtimeStateService;
         this.timerExecutor = timerExecutor;
+        this.trainExecutor = trainExecutor;
         this.statsService = statsService;
     }
 
@@ -93,6 +96,29 @@ public final class ModelService {
         runtimeStateService.setActiveModel("");
     }
 
+    public void activateAsync(final CommandSender sender, final String modelName) {
+        trainExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    ModelBundle bundle = repository.loadModel(modelName);
+                    if (bundle == null) {
+                        platform.send(sender, messages.get("model.not-found", messages.placeholders("model", modelName)));
+                        return;
+                    }
+                    final String name = bundle.info().name();
+                    activeModel = bundle.model();
+                    activeInfo = bundle.info();
+                    runtimeStateService.setActiveModel(name);
+                    platform.send(sender, messages.get("model.activated", messages.placeholders("model", name)));
+                } catch (Exception exception) {
+                    plugin.getLogger().log(Level.WARNING, "Cannot activate model " + modelName, exception);
+                    platform.send(sender, messages.get("model.error", messages.placeholders("model", modelName, "error", exception.getMessage())));
+                }
+            }
+        });
+    }
+
     public void train(final CommandSender sender) {
         if (!training.compareAndSet(false, true)) {
             platform.send(sender, messages.get("train.already", messages.placeholders("phase", trainingPhase, "elapsed", Formats.duration(System.currentTimeMillis() - trainingStartedAt))));
@@ -101,7 +127,7 @@ public final class ModelService {
         trainingStartedAt = System.currentTimeMillis();
         trainingPhase = "dataset";
         startProgressMessages();
-        timerExecutor.execute(new Runnable() {
+        trainExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 runTraining(sender);
@@ -157,13 +183,18 @@ public final class ModelService {
 
     private void runTraining(CommandSender sender) {
         try {
+            plugin.datasetService().flushPending();
             DatasetSnapshot snapshot = plugin.datasetService().snapshot();
-            if (snapshot.rows() < settings.minTotalRows || snapshot.legitRows() < settings.minLegitRows || snapshot.cheaterRows() < settings.minCheaterRows) {
+            int totalRows = snapshot.rows();
+            if (totalRows > 50000) {
+                platform.broadcastPermission("LumoAiDetector.train", "Dataset has " + totalRows + " rows. Training may take a while and use significant RAM.");
+            }
+            if (totalRows < settings.minTotalRows || snapshot.legitRows() < settings.minLegitRows || snapshot.cheaterRows() < settings.minCheaterRows) {
                 failTraining("not-enough-data");
-                platform.send(sender, messages.get("train.not-enough-data", messages.placeholders("rows", snapshot.rows(), "legit", snapshot.legitRows(), "cheater", snapshot.cheaterRows())));
+                platform.send(sender, messages.get("train.not-enough-data", messages.placeholders("rows", totalRows, "legit", snapshot.legitRows(), "cheater", snapshot.cheaterRows())));
                 return;
             }
-            platform.send(sender, messages.get("train.started", messages.placeholders("rows", snapshot.rows())));
+            platform.send(sender, messages.get("train.started", messages.placeholders("rows", totalRows)));
             trainingPhase = "split";
             Split split = split(snapshot);
             trainingPhase = "random-forest";
@@ -178,7 +209,7 @@ public final class ModelService {
             Metrics metrics = metrics(model, split.metricX, split.metricY);
             long trainingMillis = System.currentTimeMillis() - started;
             String name = "model-" + Formats.fileDate(System.currentTimeMillis());
-            ModelMetadata metadata = new ModelMetadata(name, name + ".bin", System.currentTimeMillis(), trainingMillis, snapshot.rows(), snapshot.legitRows(), snapshot.cheaterRows(), split.metricY.length, metrics.accuracy, metrics.precision, metrics.recall, metrics.falsePositiveRate, model.size(), DatasetCsv.FEATURE_COUNT, plugin.getDescription().getVersion(), platform.serverName());
+            ModelMetadata metadata = new ModelMetadata(name, name + ".bin", System.currentTimeMillis(), trainingMillis, totalRows, snapshot.legitRows(), snapshot.cheaterRows(), split.metricY.length, metrics.accuracy, metrics.precision, metrics.recall, metrics.f1, metrics.falsePositiveRate, model.size(), DatasetCsv.FEATURE_COUNT, plugin.getDescription().getVersion(), platform.serverName());
             trainingPhase = "saving";
             repository.saveModel(model, metadata);
             if (settings.autoActivateAfterTraining) {
@@ -187,7 +218,7 @@ public final class ModelService {
                 runtimeStateService.setActiveModel(name);
             }
             statsService.save();
-            String success = messages.get("train.success", messages.placeholders("model", name, "time", Formats.duration(trainingMillis), "accuracy", Formats.percent(metrics.accuracy), "precision", Formats.percent(metrics.precision), "recall", Formats.percent(metrics.recall)));
+            String success = messages.get("train.success", messages.placeholders("model", name, "time", Formats.duration(trainingMillis), "accuracy", Formats.percent(metrics.accuracy), "precision", Formats.percent(metrics.precision), "recall", Formats.percent(metrics.recall), "f1", Formats.percent(metrics.f1)));
             platform.broadcastPermission("LumoAiDetector.train", success);
             trainingPhase = "idle";
         } catch (Throwable throwable) {
@@ -281,8 +312,9 @@ public final class ModelService {
         double accuracy = (tp + tn) * 100.0D / total;
         double precision = tp + fp == 0 ? 0.0D : tp * 100.0D / (tp + fp);
         double recall = tp + fn == 0 ? 0.0D : tp * 100.0D / (tp + fn);
+        double f1 = precision + recall == 0 ? 0.0D : 2.0D * precision * recall / (precision + recall);
         double falsePositiveRate = fp + tn == 0 ? 0.0D : fp * 100.0D / (fp + tn);
-        return new Metrics(accuracy, precision, recall, falsePositiveRate);
+        return new Metrics(accuracy, precision, recall, f1, falsePositiveRate);
     }
 
     private static final class Split {
@@ -303,12 +335,14 @@ public final class ModelService {
         private final double accuracy;
         private final double precision;
         private final double recall;
+        private final double f1;
         private final double falsePositiveRate;
 
-        private Metrics(double accuracy, double precision, double recall, double falsePositiveRate) {
+        private Metrics(double accuracy, double precision, double recall, double f1, double falsePositiveRate) {
             this.accuracy = accuracy;
             this.precision = precision;
             this.recall = recall;
+            this.f1 = f1;
             this.falsePositiveRate = falsePositiveRate;
         }
     }

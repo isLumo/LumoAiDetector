@@ -1,4 +1,4 @@
-# LumoAiDetector 0.0.1
+# LumoAiDetector 0.1.0
 # Config is created in plugins/LumoAiDetector/config.yml.
 # Default values are conservative: the plugin collects clean windows, writes alerts, and does not auto-ban.
 # Auto-punishment should only be enabled after your own dataset, model validation, and server testing.
@@ -68,6 +68,8 @@ recording:
   write-header-if-missing: true
   # Dataset path inside plugins/LumoAiDetector.
   dataset-path: "data/dataset.csv"
+  # Maximum dataset rows (0 = unlimited). Warning printed at 80% of limit.
+  max-dataset-rows: 100000
 
 training:
   # Minimum rows required to start training.

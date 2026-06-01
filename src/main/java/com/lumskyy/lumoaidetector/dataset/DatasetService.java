@@ -9,30 +9,34 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 
 public final class DatasetService {
     private final LumoAiDetectorPlugin plugin;
     private final ExecutorService executor;
     private final StatsService statsService;
+    private final AtomicInteger writtenRows = new AtomicInteger();
     private volatile PluginSettings settings;
+    private volatile BufferedWriter writer;
 
     public DatasetService(LumoAiDetectorPlugin plugin, PluginSettings settings, ExecutorService executor, StatsService statsService) {
         this.plugin = plugin;
         this.settings = settings;
         this.executor = executor;
         this.statsService = statsService;
-        ensureFile();
     }
 
     public void updateSettings(PluginSettings settings) {
         this.settings = settings;
-        ensureFile();
     }
 
     public File file() {
         return new File(plugin.getDataFolder(), settings.datasetPath);
+    }
+
+    public int writtenRowCount() {
+        return writtenRows.get();
     }
 
     public void appendWindow(final RecordLabel label, double[] features) {
@@ -49,31 +53,61 @@ public final class DatasetService {
     }
 
     public DatasetSnapshot snapshot() throws IOException {
-        flush();
-        return DatasetCsv.read(file());
+        return DatasetCsv.read(file(), settings.maxDatasetRows);
+    }
+
+    public void flushPending() {
+        try {
+            java.util.concurrent.Future<?> future = executor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        BufferedWriter w = writer;
+                        if (w != null) {
+                            w.flush();
+                        }
+                    } catch (IOException ignored) {
+                    }
+                }
+            });
+            future.get(30L, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+        }
     }
 
     public void shutdown() {
-        flush();
+        closeWriter();
     }
 
     private void write(RecordLabel label, double[] features) {
-        ensureFile();
-        BufferedWriter writer = null;
         try {
-            writer = new BufferedWriter(new FileWriter(file(), true));
-            writer.write(DatasetCsv.row(features, label));
-            writer.newLine();
+            BufferedWriter w = writer();
+            w.write(DatasetCsv.row(features, label));
+            w.newLine();
+            int count = writtenRows.incrementAndGet();
             statsService.incrementRecorded(label);
-        } catch (IOException exception) {
-            plugin.getLogger().warning("Cannot write dataset row: " + exception.getMessage());
-        } finally {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (IOException ignored) {
-                }
+            if (settings.maxDatasetRows > 0 && count >= settings.maxDatasetRows) {
+                plugin.getLogger().warning("Dataset has reached " + count + " rows (limit: " + settings.maxDatasetRows + "). Consider trimming or increasing the limit.");
             }
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.WARNING, "Cannot write dataset row", exception);
+        }
+    }
+
+    private BufferedWriter writer() throws IOException {
+        BufferedWriter w = writer;
+        if (w != null) {
+            return w;
+        }
+        synchronized (this) {
+            w = writer;
+            if (w != null) {
+                return w;
+            }
+            ensureFile();
+            w = new BufferedWriter(new FileWriter(file(), true));
+            writer = w;
+            return w;
         }
     }
 
@@ -84,33 +118,24 @@ public final class DatasetService {
             parent.mkdirs();
         }
         if (!file.exists() && settings.writeDatasetHeader) {
-            BufferedWriter writer = null;
-            try {
-                writer = new BufferedWriter(new FileWriter(file));
-                writer.write(DatasetCsv.header());
-                writer.newLine();
+            try (BufferedWriter w = new BufferedWriter(new FileWriter(file))) {
+                w.write(DatasetCsv.header());
+                w.newLine();
             } catch (IOException exception) {
                 plugin.getLogger().warning("Cannot create dataset file: " + exception.getMessage());
-            } finally {
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (IOException ignored) {
-                    }
-                }
             }
         }
     }
 
-    private void flush() {
-        try {
-            Future<?> future = executor.submit(new Runnable() {
-                @Override
-                public void run() {
-                }
-            });
-            future.get(10L, TimeUnit.SECONDS);
-        } catch (Exception ignored) {
+    private synchronized void closeWriter() {
+        BufferedWriter w = writer;
+        if (w != null) {
+            writer = null;
+            try {
+                w.close();
+            } catch (IOException exception) {
+                plugin.getLogger().log(Level.WARNING, "Cannot close dataset writer", exception);
+            }
         }
     }
 }

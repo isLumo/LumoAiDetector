@@ -1,33 +1,32 @@
 package com.lumskyy.lumoaidetector.util;
 
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public final class Formats {
-    private static final DecimalFormat ONE = new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
-    private static final DecimalFormat TWO = new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.US));
+    private static final ZoneId UTC = ZoneId.of("UTC");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US).withZone(UTC);
+    private static final DateTimeFormatter FILE_DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss", Locale.US).withZone(UTC);
 
     private Formats() {
     }
 
     public static String percent(double value) {
-        return ONE.format(value);
+        return String.format(Locale.US, "%.1f", value);
     }
 
     public static String number(double value) {
-        return TWO.format(value);
+        return String.format(Locale.US, "%.2f", value);
     }
 
     public static String date(long millis) {
-        return Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        return DATE_FMT.format(Instant.ofEpochMilli(millis));
     }
 
     public static String fileDate(long millis) {
-        return Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        return FILE_DATE_FMT.format(Instant.ofEpochMilli(millis));
     }
 
     public static String duration(long millis) {
@@ -50,9 +49,9 @@ public final class Formats {
         }
         double kb = bytes / 1024.0D;
         if (kb < 1024.0D) {
-            return ONE.format(kb) + " KB";
+            return String.format(Locale.US, "%.1f", kb) + " KB";
         }
         double mb = kb / 1024.0D;
-        return ONE.format(mb) + " MB";
+        return String.format(Locale.US, "%.1f", mb) + " MB";
     }
 }

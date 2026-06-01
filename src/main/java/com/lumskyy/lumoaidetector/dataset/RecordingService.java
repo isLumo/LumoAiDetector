@@ -25,11 +25,21 @@ public final class RecordingService {
         }
         RecordSession session = new RecordSession(player.getUniqueId(), player.getName(), label);
         sessions.put(player.getUniqueId(), session);
-        return new RecordToggleResult(true, session);
+        return new RecordToggleResult(true, session, existing != null ? existing.label() : null);
     }
 
     public void stop(UUID uuid) {
         sessions.remove(uuid);
+    }
+
+    public int stopAll() {
+        int count = sessions.size();
+        sessions.clear();
+        return count;
+    }
+
+    public RecordSession get(UUID uuid) {
+        return sessions.get(uuid);
     }
 
     public void record(Player player, double[] features) {

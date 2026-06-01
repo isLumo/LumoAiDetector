@@ -31,6 +31,7 @@ public final class PluginSettings {
     public final String[] punishmentCommands;
     public final boolean writeDatasetHeader;
     public final String datasetPath;
+    public final int maxDatasetRows;
     public final int minTotalRows;
     public final int minLegitRows;
     public final int minCheaterRows;
@@ -76,6 +77,7 @@ public final class PluginSettings {
         this.punishmentCommands = config.getStringList("punishment.commands").toArray(new String[0]);
         this.writeDatasetHeader = config.getBoolean("recording.write-header-if-missing", true);
         this.datasetPath = cleanRelativePath(config.getString("recording.dataset-path", "data/dataset.csv"));
+        this.maxDatasetRows = Math.max(0, config.getInt("recording.max-dataset-rows", 100000));
         this.minTotalRows = Math.max(1, config.getInt("training.min-total-rows", 100));
         this.minLegitRows = Math.max(0, config.getInt("training.min-legit-rows", 25));
         this.minCheaterRows = Math.max(0, config.getInt("training.min-cheater-rows", 25));
@@ -111,6 +113,9 @@ public final class PluginSettings {
         if (value == null || value.trim().isEmpty()) {
             return "data/dataset.csv";
         }
-        return value.replace('\\', '/').replace("..", "").replaceFirst("^/+", "");
+        if (value.contains("..") || value.startsWith("/") || value.startsWith("\\")) {
+            return "data/dataset.csv";
+        }
+        return value.replace('\\', '/');
     }
 }

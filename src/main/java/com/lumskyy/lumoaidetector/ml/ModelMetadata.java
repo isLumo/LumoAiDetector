@@ -17,13 +17,14 @@ public final class ModelMetadata {
     private final double accuracy;
     private final double precision;
     private final double recall;
+    private final double f1;
     private final double falsePositiveRate;
     private final int treeCount;
     private final int featureCount;
     private final String pluginVersion;
     private final String serverVersion;
 
-    public ModelMetadata(String name, String fileName, long createdAt, long trainingMillis, int rows, int legitRows, int cheaterRows, int validationRows, double accuracy, double precision, double recall, double falsePositiveRate, int treeCount, int featureCount, String pluginVersion, String serverVersion) {
+    public ModelMetadata(String name, String fileName, long createdAt, long trainingMillis, int rows, int legitRows, int cheaterRows, int validationRows, double accuracy, double precision, double recall, double f1, double falsePositiveRate, int treeCount, int featureCount, String pluginVersion, String serverVersion) {
         this.name = name;
         this.fileName = fileName;
         this.createdAt = createdAt;
@@ -35,6 +36,7 @@ public final class ModelMetadata {
         this.accuracy = accuracy;
         this.precision = precision;
         this.recall = recall;
+        this.f1 = f1;
         this.falsePositiveRate = falsePositiveRate;
         this.treeCount = treeCount;
         this.featureCount = featureCount;
@@ -43,7 +45,7 @@ public final class ModelMetadata {
     }
 
     public static ModelMetadata minimal(String name, File file) {
-        return new ModelMetadata(name, file.getName(), file.lastModified(), 0L, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0, 120, "unknown", "unknown");
+        return new ModelMetadata(name, file.getName(), file.lastModified(), 0L, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0, 120, "unknown", "unknown");
     }
 
     public static ModelMetadata load(File file, File modelFile) {
@@ -63,6 +65,7 @@ public final class ModelMetadata {
                 config.getDouble("metrics.accuracy", 0.0D),
                 config.getDouble("metrics.precision", 0.0D),
                 config.getDouble("metrics.recall", 0.0D),
+                config.getDouble("metrics.f1", 0.0D),
                 config.getDouble("metrics.false-positive-rate", 0.0D),
                 config.getInt("forest.trees", 0),
                 config.getInt("forest.features", 120),
@@ -86,6 +89,7 @@ public final class ModelMetadata {
         config.set("metrics.accuracy", accuracy);
         config.set("metrics.precision", precision);
         config.set("metrics.recall", recall);
+        config.set("metrics.f1", f1);
         config.set("metrics.false-positive-rate", falsePositiveRate);
         config.set("forest.trees", treeCount);
         config.set("forest.features", featureCount);
@@ -140,6 +144,10 @@ public final class ModelMetadata {
 
     public double recall() {
         return recall;
+    }
+
+    public double f1() {
+        return f1;
     }
 
     public double falsePositiveRate() {
