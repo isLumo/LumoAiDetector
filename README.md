@@ -268,42 +268,6 @@ plugins/LumoAiDetector/stats.yml
 plugins/LumoAiDetector/runtime.yml
 ```
 
-## Changelog
-
-### 0.1.1 (planned)
-
-- Fixed memory leak: alert history is now cleared when a player disconnects.
-- Fixed hardcoded English text in /lad dataset info (now uses messages.yml).
-- Fixed IO executor not waiting for pending writes on shutdown.
-- Fixed pruneStatesIfNeeded running on every PlayerMoveEvent; now throttled to once per 5s.
-- Fixed path traversal: Windows drive-letter paths in dataset-path config are now rejected.
-- Fixed saveModel writing metadata file twice; SHA-256 is computed before the first write.
-- Optimized DatasetCsv.row() by replacing String.format with ThreadLocal DecimalFormat.
-- Added LumoAiDetector.bypass permission to exclude players from detection.
-- Added detector.disabled-worlds config list.
-- Added detector.whitelisted-uuids config list.
-- Added punishment.notify-player and punishment.notify-player-message config.
-- Added /lad dataset trim <rows> command.
-- Added {world} and {ping} placeholders for punishment commands.
-- Added performance.async-prediction config option.
-- Improved target() to skip entities outside the sphere radius.
-
-### 0.1.0 (2026-06-02)
-
-Major stabilization release. See the [full changelog](https://github.com/isLumo/LumoAiDetector/releases/tag/v0.1.0).
-
-Key changes:
-- Async IO for model loading and dataset snapshots - no more main thread freezes.
-- Fixed race conditions in player state maps and thread safety in formatting.
-- Optimized dataset writing with a cached buffered writer and row limits.
-- SHA-256 verification when loading models to detect tampering.
-- Renamed `/lad deactive` to `/lad deactivate` and `/lad deleted` to `/lad delete` with backward-compatible aliases.
-- New commands: `/lad record stop all`, `/lad dataset info`, `/lad models info`, `/lad check history`.
-- F1-score is now computed and displayed after training.
-- Separate training executor prevents progress messages from blocking.
-- build.sh for Linux and macOS.
-- CI/CD build badge in README.
-
 ## License and forks
 
 LumoAiDetector is licensed under Apache License 2.0.
