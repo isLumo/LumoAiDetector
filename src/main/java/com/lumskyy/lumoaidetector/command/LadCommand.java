@@ -209,7 +209,7 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             if (!has(sender, "LumoAiDetector.status")) {
                 return Collections.emptyList();
             }
-            return filter(list("info"), args[1]);
+            return filter(list("info", "trim"), args[1]);
         }
         if (sub.equals("backup")) {
             if (!has(sender, "LumoAiDetector.backup")) {
@@ -433,17 +433,46 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
     }
 
     private void dataset(CommandSender sender, String[] args) {
-        if (args.length < 2 || !args[1].equalsIgnoreCase("info")) {
+        if (args.length < 2) {
+            messages.send(sender, "record.usage");
+            return;
+        }
+        if (args[1].equalsIgnoreCase("trim")) {
+            datasetTrim(sender, args);
+            return;
+        }
+        if (!args[1].equalsIgnoreCase("info")) {
             messages.send(sender, "record.usage");
             return;
         }
         try {
             DatasetSnapshot snap = plugin.datasetService().snapshot();
             long fileSize = plugin.datasetService().file().length();
-            sender.sendMessage("Dataset: " + snap.rows() + " rows (legit: " + snap.legitRows() + ", cheater: " + snap.cheaterRows() + "), skipped: " + snap.skippedRows() + ", size: " + Formats.size(fileSize));
+            sender.sendMessage(messages.get("dataset.info", messages.placeholders(
+                    "rows", snap.rows(),
+                    "legit", snap.legitRows(),
+                    "cheater", snap.cheaterRows(),
+                    "skipped", snap.skippedRows(),
+                    "size", Formats.size(fileSize)
+            )));
         } catch (Exception exception) {
             messages.send(sender, "model.error", messages.placeholders("model", "dataset", "error", exception.getMessage()));
         }
+    }
+
+    private void datasetTrim(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            messages.send(sender, "dataset.trim-usage");
+            return;
+        }
+        int keepRows;
+        try {
+            keepRows = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            messages.send(sender, "dataset.trim-usage");
+            return;
+        }
+        plugin.datasetService().trim(keepRows, sender);
     }
 
     private void delete(CommandSender sender, String[] args) {

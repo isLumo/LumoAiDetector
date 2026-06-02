@@ -3,14 +3,19 @@ package com.lumskyy.lumoaidetector.dataset;
 import com.lumskyy.lumoaidetector.LumoAiDetectorPlugin;
 import com.lumskyy.lumoaidetector.config.PluginSettings;
 import com.lumskyy.lumoaidetector.storage.StatsService;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
+import org.bukkit.command.CommandSender;
 
 public final class DatasetService {
     private final LumoAiDetectorPlugin plugin;
@@ -73,6 +78,43 @@ public final class DatasetService {
             future.get(30L, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception ignored) {
         }
+    }
+
+    public void trim(final int keepRows, final CommandSender sender) {
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    File src = file();
+                    if (!src.exists()) {
+                        plugin.platform().send(sender, "Dataset file not found.");
+                        return;
+                    }
+                    DatasetSnapshot snap = DatasetCsv.read(src, 0);
+                    int total = snap.rows();
+                    if (total <= keepRows) {
+                        plugin.platform().send(sender, "Dataset already has " + total + " rows, nothing to trim.");
+                        return;
+                    }
+                    File tmp = new File(src.getParentFile(), src.getName() + ".trim.tmp");
+                    try (BufferedWriter w = new BufferedWriter(new FileWriter(tmp))) {
+                        w.write(DatasetCsv.header());
+                        w.newLine();
+                        int start = total - keepRows;
+                        for (int i = start; i < total; i++) {
+                            w.write(DatasetCsv.row(snap.x()[i], snap.y()[i] == 1 ? RecordLabel.CHEATER : RecordLabel.LEGIT));
+                            w.newLine();
+                        }
+                    }
+                    closeWriter();
+                    Files.move(tmp.toPath(), src.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    writtenRows.set(keepRows);
+                    plugin.platform().send(sender, "Dataset trimmed: " + total + " -> " + keepRows + " rows.");
+                } catch (Exception exception) {
+                    plugin.platform().send(sender, "Trim failed: " + exception.getMessage());
+                }
+            }
+        });
     }
 
     public void shutdown() {

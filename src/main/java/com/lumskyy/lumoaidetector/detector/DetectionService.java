@@ -13,7 +13,9 @@ import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -28,17 +30,21 @@ public final class DetectionService {
     private final RecordingService recordingService;
     private final ModelService modelService;
     private final StatsService statsService;
+    private final ExecutorService ioExecutor;
     private final Map<UUID, PlayerSampleState> states = new ConcurrentHashMap<UUID, PlayerSampleState>();
     private final Map<UUID, ArrayDeque<String>> alertHistory = new ConcurrentHashMap<UUID, ArrayDeque<String>>();
     private static final int MAX_ALERT_HISTORY = 50;
+    private volatile long lastPruneTime = 0L;
+    private static final long PRUNE_INTERVAL_MS = 5000L;
 
-    public DetectionService(PluginSettings settings, MessageService messages, Platform platform, RecordingService recordingService, ModelService modelService, StatsService statsService) {
+    public DetectionService(PluginSettings settings, MessageService messages, Platform platform, RecordingService recordingService, ModelService modelService, StatsService statsService, ExecutorService ioExecutor) {
         this.settings = settings;
         this.messages = messages;
         this.platform = platform;
         this.recordingService = recordingService;
         this.modelService = modelService;
         this.statsService = statsService;
+        this.ioExecutor = ioExecutor;
     }
 
     public void updateSettings(PluginSettings settings) {
@@ -54,6 +60,7 @@ public final class DetectionService {
 
     public void quit(Player player) {
         states.remove(player.getUniqueId());
+        alertHistory.remove(player.getUniqueId());
     }
 
     public CheckResult check(Player player) {
@@ -89,6 +96,15 @@ public final class DetectionService {
             return;
         }
         Player player = event.getPlayer();
+        if (player.hasPermission("LumoAiDetector.bypass")) {
+            return;
+        }
+        if (localSettings.disabledWorlds.contains(player.getWorld().getName())) {
+            return;
+        }
+        if (localSettings.whitelistedUuids.contains(player.getUniqueId())) {
+            return;
+        }
         PlayerSampleState state = state(player);
         double[] features;
         synchronized (state) {
@@ -99,9 +115,22 @@ public final class DetectionService {
         }
         recordingService.record(player, features);
         if (localSettings.detectorEnabled) {
-            PredictionResult prediction = modelService.predict(features);
-            if (prediction.available()) {
-                handlePrediction(player, state, prediction, localSettings);
+            if (localSettings.asyncPrediction) {
+                final double[] featFinal = features;
+                ioExecutor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        PredictionResult prediction = modelService.predict(featFinal);
+                        if (prediction.available()) {
+                            handlePrediction(player, state, prediction, localSettings);
+                        }
+                    }
+                });
+            } else {
+                PredictionResult prediction = modelService.predict(features);
+                if (prediction.available()) {
+                    handlePrediction(player, state, prediction, localSettings);
+                }
             }
         }
     }
@@ -187,6 +216,9 @@ public final class DetectionService {
             for (String command : localSettings.punishmentCommands) {
                 platform.dispatchConsoleCommand(replacePunishment(command, player, percent, prediction));
             }
+            if (localSettings.notifyPlayer) {
+                platform.sendPlayer(player, ChatColor.translateAlternateColorCodes('&', localSettings.notifyPlayerMessage));
+            }
         }
     }
 
@@ -204,12 +236,26 @@ public final class DetectionService {
     }
 
     private String replacePunishment(String command, Player player, double percent, PredictionResult prediction) {
+        String worldName = player.getWorld().getName();
+        String ping = getPing(player);
         return command
                 .replace("{player}", player.getName())
                 .replace("{uuid}", player.getUniqueId().toString())
                 .replace("{percent}", Formats.percent(percent))
                 .replace("{confidence}", Formats.percent(prediction.confidencePercent()))
-                .replace("{model}", prediction.modelName());
+                .replace("{model}", prediction.modelName())
+                .replace("{world}", worldName)
+                .replace("{ping}", ping);
+    }
+
+    private String getPing(Player player) {
+        try {
+            Object entityPlayer = player.getClass().getMethod("getHandle").invoke(player);
+            int ping = entityPlayer.getClass().getField("ping").getInt(entityPlayer);
+            return String.valueOf(ping);
+        } catch (Exception ignored) {
+            return "?";
+        }
     }
 
     private PlayerSampleState state(Player player) {
@@ -223,22 +269,32 @@ public final class DetectionService {
     }
 
     private void pruneStatesIfNeeded() {
-        if (states.size() > settings.maxPlayerStates) {
-            states.keySet().removeIf(new java.util.function.Predicate<UUID>() {
-                @Override
-                public boolean test(UUID uuid) {
-                    return Bukkit.getPlayer(uuid) == null;
-                }
-            });
+        if (states.size() <= settings.maxPlayerStates) {
+            return;
         }
+        long now = System.currentTimeMillis();
+        if (now - lastPruneTime < PRUNE_INTERVAL_MS) {
+            return;
+        }
+        lastPruneTime = now;
+        states.keySet().removeIf(new java.util.function.Predicate<UUID>() {
+            @Override
+            public boolean test(UUID uuid) {
+                return Bukkit.getPlayer(uuid) == null;
+            }
+        });
     }
 
     private TargetInfo target(Player player, double radius) {
         Location eye = player.getEyeLocation();
+        double radiusSq = radius * radius;
         boolean found = false;
         double best = 180.0D;
         for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
             if (!(entity instanceof LivingEntity) || entity.equals(player) || entity.isDead()) {
+                continue;
+            }
+            if (entity.getLocation().distanceSquared(eye) > radiusSq) {
                 continue;
             }
             LivingEntity living = (LivingEntity) entity;

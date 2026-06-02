@@ -199,10 +199,33 @@ public final class ModelService {
             Split split = split(snapshot);
             trainingPhase = "random-forest";
             int randomFeatures = settings.randomFeatures > 0 ? settings.randomFeatures : Math.max(1, (int) Math.floor(Math.sqrt(DatasetCsv.FEATURE_COUNT)));
+            int adaptiveMaxNodes = settings.maxNodes;
+            int adaptiveNodeSize = settings.nodeSize;
+            int legitRows = snapshot.legitRows();
+            int cheaterRows = snapshot.cheaterRows();
+            if (totalRows < 500) {
+                adaptiveMaxNodes = Math.min(adaptiveMaxNodes, 40);
+                adaptiveNodeSize = Math.max(adaptiveNodeSize, 10);
+            } else if (totalRows < 2000) {
+                adaptiveMaxNodes = Math.min(adaptiveMaxNodes, 100);
+                adaptiveNodeSize = Math.max(adaptiveNodeSize, 5);
+            } else {
+                adaptiveMaxNodes = Math.min(Math.max(adaptiveMaxNodes, totalRows / 20), 500);
+                adaptiveNodeSize = Math.max(3, adaptiveNodeSize);
+            }
+            if (legitRows > 0 && cheaterRows > 0) {
+                double ratio = Math.max(legitRows, cheaterRows) / (double) Math.min(legitRows, cheaterRows);
+                if (ratio > 4.0) {
+                    adaptiveNodeSize = Math.max(adaptiveNodeSize, 8);
+                    if (settings.maxNodes <= 100) {
+                        adaptiveMaxNodes = Math.min(adaptiveMaxNodes, 60);
+                    }
+                }
+            }
             RandomForest.Trainer trainer = new RandomForest.Trainer(settings.randomForestTrees, randomFeatures);
             trainer.setNumRandomFeatures(randomFeatures);
-            trainer.setMaxNodes(settings.maxNodes);
-            trainer.setNodeSize(settings.nodeSize);
+            trainer.setMaxNodes(adaptiveMaxNodes);
+            trainer.setNodeSize(adaptiveNodeSize);
             long started = System.currentTimeMillis();
             RandomForest model = trainer.train(split.trainX, split.trainY);
             trainingPhase = "metrics";
@@ -257,36 +280,66 @@ public final class ModelService {
 
     private Split split(DatasetSnapshot snapshot) {
         int rows = snapshot.rows();
+        int[] y = snapshot.y();
+        List<Integer> legitIdx = new ArrayList<Integer>();
+        List<Integer> cheatIdx = new ArrayList<Integer>();
+        for (int i = 0; i < rows; i++) {
+            if (y[i] == 0) {
+                legitIdx.add(Integer.valueOf(i));
+            } else {
+                cheatIdx.add(Integer.valueOf(i));
+            }
+        }
         int validation = rows * settings.validationPercent / 100;
-        if (validation <= 0 || rows - validation < 2) {
+        if (validation <= 0 || rows - validation < 2 || legitIdx.size() < 2 || cheatIdx.size() < 2) {
             validation = 0;
         }
-        List<Integer> indexes = new ArrayList<Integer>();
-        for (int i = 0; i < rows; i++) {
-            indexes.add(Integer.valueOf(i));
+        Collections.shuffle(legitIdx, new Random(System.nanoTime()));
+        Collections.shuffle(cheatIdx, new Random(System.nanoTime()));
+        double[][] x = snapshot.x();
+        if (validation == 0) {
+            double[][] trainX = new double[rows][DatasetCsv.FEATURE_COUNT];
+            int[] trainY = new int[rows];
+            for (int i = 0; i < rows; i++) {
+                trainX[i] = x[i];
+                trainY[i] = y[i];
+            }
+            return new Split(trainX, trainY, trainX, trainY);
         }
-        Collections.shuffle(indexes, new Random(System.nanoTime()));
-        int trainRows = rows - validation;
+        int legitVal = Math.max(1, legitIdx.size() * settings.validationPercent / 100);
+        int cheatVal = Math.max(1, cheatIdx.size() * settings.validationPercent / 100);
+        legitVal = Math.min(legitVal, legitIdx.size() - 1);
+        cheatVal = Math.min(cheatVal, cheatIdx.size() - 1);
+        int trainRows = rows - legitVal - cheatVal;
         double[][] trainX = new double[trainRows][DatasetCsv.FEATURE_COUNT];
         int[] trainY = new int[trainRows];
-        double[][] metricX = new double[validation == 0 ? rows : validation][DatasetCsv.FEATURE_COUNT];
-        int[] metricY = new int[validation == 0 ? rows : validation];
-        for (int i = 0; i < trainRows; i++) {
-            int source = indexes.get(i).intValue();
-            trainX[i] = snapshot.x()[source];
-            trainY[i] = snapshot.y()[source];
+        double[][] metricX = new double[legitVal + cheatVal][DatasetCsv.FEATURE_COUNT];
+        int[] metricY = new int[legitVal + cheatVal];
+        int t = 0;
+        for (int i = legitVal; i < legitIdx.size(); i++) {
+            int src = legitIdx.get(i).intValue();
+            trainX[t] = x[src];
+            trainY[t] = y[src];
+            t++;
         }
-        if (validation == 0) {
-            for (int i = 0; i < rows; i++) {
-                metricX[i] = snapshot.x()[i];
-                metricY[i] = snapshot.y()[i];
-            }
-        } else {
-            for (int i = 0; i < validation; i++) {
-                int source = indexes.get(trainRows + i).intValue();
-                metricX[i] = snapshot.x()[source];
-                metricY[i] = snapshot.y()[source];
-            }
+        for (int i = cheatVal; i < cheatIdx.size(); i++) {
+            int src = cheatIdx.get(i).intValue();
+            trainX[t] = x[src];
+            trainY[t] = y[src];
+            t++;
+        }
+        int m = 0;
+        for (int i = 0; i < legitVal; i++) {
+            int src = legitIdx.get(i).intValue();
+            metricX[m] = x[src];
+            metricY[m] = y[src];
+            m++;
+        }
+        for (int i = 0; i < cheatVal; i++) {
+            int src = cheatIdx.get(i).intValue();
+            metricX[m] = x[src];
+            metricY[m] = y[src];
+            m++;
         }
         return new Split(trainX, trainY, metricX, metricY);
     }

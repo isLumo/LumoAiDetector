@@ -1,4 +1,4 @@
-# LumoAiDetector 0.1.0
+# LumoAiDetector 0.1.1
 # Config is created in plugins/LumoAiDetector/config.yml.
 # Default values are conservative: the plugin collects clean windows, writes alerts, and does not auto-ban.
 # Auto-punishment should only be enabled after your own dataset, model validation, and server testing.
@@ -35,6 +35,10 @@ detector:
   default-multiplier: 0.01
   # Hard limit for one mouse step after normalization.
   max-normalized-step: 10000.0
+  # Worlds where the detector is disabled. Leave empty to check everywhere.
+  disabled-worlds: []
+  # Players exempt from detection by UUID.
+  whitelisted-uuids: []
 
 alert:
   # Alerts are visible to players with the LumoAiDetector.alert permission.
@@ -57,11 +61,14 @@ punishment:
   required-cheat-windows: 8
   # Anti-spam cooldown for punishments per player.
   cooldown-ms: 60000
-  # Commands run from the console. Available placeholders: {player}, {uuid}, {percent}, {confidence}, {model}.
+  # Commands run from the console. Available placeholders: {player}, {uuid}, {percent}, {confidence}, {model}, {world}, {ping}.
   commands:
     - "kick {player} LumoAiDetector: suspicion {percent}%"
   # If all windows in the buffer are cheater, the player is counted as 100% in statistics.
   mark-100-percent: true
+  # Send a warning to the player when punishment triggers.
+  notify-player: false
+  notify-player-message: "&cAnticheat flagged your combat rotation."
 
 recording:
   # Automatically create the dataset.csv header if the file does not exist.
@@ -106,3 +113,5 @@ performance:
   save-stats-interval-seconds: 60
   # Maximum player states in memory. Old offline states are cleaned up.
   max-player-states: 500
+  # Run ML predictions off the main thread. Helps on servers with many players.
+  async-prediction: false

@@ -1,5 +1,8 @@
 package com.lumskyy.lumoaidetector.config;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import org.bukkit.configuration.file.FileConfiguration;
 
 public final class PluginSettings {
@@ -29,6 +32,8 @@ public final class PluginSettings {
     public final long punishmentCooldownMillis;
     public final boolean markOneHundredPercent;
     public final String[] punishmentCommands;
+    public final boolean notifyPlayer;
+    public final String notifyPlayerMessage;
     public final boolean writeDatasetHeader;
     public final String datasetPath;
     public final int maxDatasetRows;
@@ -47,6 +52,9 @@ public final class PluginSettings {
     public final int maxBackups;
     public final int saveStatsIntervalSeconds;
     public final int maxPlayerStates;
+    public final Set<String> disabledWorlds;
+    public final Set<java.util.UUID> whitelistedUuids;
+    public final boolean asyncPrediction;
 
     private PluginSettings(FileConfiguration config) {
         this.debug = config.getBoolean("settings.debug", false);
@@ -75,6 +83,8 @@ public final class PluginSettings {
         this.punishmentCooldownMillis = Math.max(0L, config.getLong("punishment.cooldown-ms", 60000L));
         this.markOneHundredPercent = config.getBoolean("punishment.mark-100-percent", true);
         this.punishmentCommands = config.getStringList("punishment.commands").toArray(new String[0]);
+        this.notifyPlayer = config.getBoolean("punishment.notify-player", false);
+        this.notifyPlayerMessage = config.getString("punishment.notify-player-message", "&cAnticheat flagged your combat rotation.");
         this.writeDatasetHeader = config.getBoolean("recording.write-header-if-missing", true);
         this.datasetPath = cleanRelativePath(config.getString("recording.dataset-path", "data/dataset.csv"));
         this.maxDatasetRows = Math.max(0, config.getInt("recording.max-dataset-rows", 100000));
@@ -93,6 +103,20 @@ public final class PluginSettings {
         this.maxBackups = Math.max(1, config.getInt("models.max-backups", 20));
         this.saveStatsIntervalSeconds = Math.max(5, config.getInt("performance.save-stats-interval-seconds", 60));
         this.maxPlayerStates = Math.max(10, config.getInt("performance.max-player-states", 500));
+        java.util.Set<String> worlds = new java.util.HashSet<String>();
+        for (String s : config.getStringList("detector.disabled-worlds")) {
+            worlds.add(s.trim());
+        }
+        this.disabledWorlds = java.util.Collections.unmodifiableSet(worlds);
+        java.util.Set<java.util.UUID> uuids = new java.util.HashSet<java.util.UUID>();
+        for (String s : config.getStringList("detector.whitelisted-uuids")) {
+            try {
+                uuids.add(java.util.UUID.fromString(s.trim()));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        this.whitelistedUuids = java.util.Collections.unmodifiableSet(uuids);
+        this.asyncPrediction = config.getBoolean("performance.async-prediction", false);
     }
 
     public static PluginSettings from(FileConfiguration config) {
@@ -113,9 +137,11 @@ public final class PluginSettings {
         if (value == null || value.trim().isEmpty()) {
             return "data/dataset.csv";
         }
-        if (value.contains("..") || value.startsWith("/") || value.startsWith("\\")) {
+        String v = value.trim();
+        if (v.contains("..") || v.startsWith("/") || v.startsWith("\\")
+                || (v.length() >= 2 && v.charAt(1) == ':')) {
             return "data/dataset.csv";
         }
-        return value.replace('\\', '/');
+        return v.replace('\\', '/');
     }
 }

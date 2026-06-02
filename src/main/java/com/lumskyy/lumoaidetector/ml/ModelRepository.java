@@ -136,10 +136,7 @@ public final class ModelRepository {
             output.writeObject(model);
         }
         String sha256 = computeSha256(modelFile);
-        metadata.save(metadataFile(modelsDir(), metadata.name()));
-        YamlConfiguration metaConfig = YamlConfiguration.loadConfiguration(metadataFile(modelsDir(), metadata.name()));
-        metaConfig.set("sha256", sha256);
-        metaConfig.save(metadataFile(modelsDir(), metadata.name()));
+        metadata.saveWithSha256(metadataFile(modelsDir(), metadata.name()), sha256);
     }
 
     public ModelBundle loadModel(String rawName) throws IOException, ClassNotFoundException {

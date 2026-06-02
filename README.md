@@ -27,11 +27,11 @@
 
 # LumoAiDetector
 
-LumoAiDetector is a free Minecraft anti-cheat experiment built around local AI model training. It records combat rotation windows, filters out bad data, trains a Smile Random Forest model inside Java, then alerts staff when a player starts looking suspicious.
+LumoAiDetector is a free Minecraft anti-cheat that trains a local AI model inside the server. It records combat rotation windows, filters out bad data, trains a Smile Random Forest model in Java, and alerts staff when a player looks suspicious.
 
-I first made this for my own server. After working on it for a while, I decided to publish it instead of keeping it private. On 01.06.2026, I could find free anti-cheats and a few ML ideas, but I could not find a free plugin that matched this exact workflow: record your own dataset, train your own local model, manage dated model files in game, and keep every message configurable.
+I originally built this for my own server. After working on it for a while, I decided to publish it. As of June 2026, there are free anti-cheats and a few ML experiments out there, but I could not find a plugin that does this exact workflow: record your own dataset, train a local model, manage model files in game, and keep every message editable.
 
-The plugin is free because I want server owners to be able to test this idea without paying for a closed model or running a separate Python service. I am not publishing my own trained model. Train yours. The better your dataset is, the better the detector will be.
+The plugin is free so server owners can test this without paying for a closed model or running a separate Python service. I am not shipping a pre-trained model. Train yours. Better data means a better detector.
 
 <p align="center">
   <img src="docs/assets/lumoaidetector-pipeline.svg" alt="How LumoAiDetector learns">
@@ -74,9 +74,9 @@ If you only record one legit player and one cheat profile, you are teaching the 
 ## Features
 
 - Gradle project ready for IntelliJ IDEA.
-- Bukkit, Spigot, Paper, Purpur and Folia friendly structure.
+- Bukkit, Spigot, Paper, Purpur and Folia compatible.
 - Java 8 bytecode target.
-- No NMS and no ProtocolLib requirement.
+- No NMS or ProtocolLib needed.
 - Configurable `plugins/LumoAiDetector/config.yml`.
 - Configurable `plugins/LumoAiDetector/messages.yml`.
 - Admin command `/lad`.
@@ -93,11 +93,18 @@ If you only record one legit player and one cheat profile, you are teaching the 
 - SHA-256 model integrity verification on load.
 - F1-score in training metrics.
 - Alert history per player.
+- Bypass permission (LumoAiDetector.bypass) for staff and trusted players.
+- Per-world detection disable via disabled-worlds config.
+- UUID whitelist in config for exempting specific players.
+- Player notification on punishment trigger.
+- /lad dataset trim <rows> to shrink the dataset in game.
+- Extended punishment placeholders: {world}, {ping}.
+- Async prediction mode for high-population servers.
 
 ## Install
 
 1. Build the jar.
-2. Put `build/libs/LumoAiDetector-0.1.0.jar` into your server `plugins` folder.
+2. Put `build/libs/LumoAiDetector-0.1.1.jar` into your server `plugins` folder.
 3. Start the server once.
 4. Edit `plugins/LumoAiDetector/config.yml` only if you know what you want to tune.
 5. Edit `plugins/LumoAiDetector/messages.yml` if you want different text.
@@ -135,7 +142,7 @@ Gradle -> Tasks -> shadow -> shadowJar
 The plugin jar will be here:
 
 ```text
-build/libs/LumoAiDetector-0.1.0.jar
+build/libs/LumoAiDetector-0.1.1.jar
 ```
 
 Console build:
@@ -183,6 +190,7 @@ gradle clean shadowJar
 | `/lad check <player> history` | View recent alert history for a player. |
 | `/lad status` | Show plugin, detector, model, dataset and recording status. |
 | `/lad dataset info` | Show dataset row count, class balance and file size. |
+| `/lad dataset trim <rows>` | Keep only the last N rows and delete the rest. |
 
 ### Other
 
@@ -205,6 +213,7 @@ LumoAiDetector.models       - /lad models, /lad models info
 LumoAiDetector.delete       - /lad delete
 LumoAiDetector.backup       - /lad backup
 LumoAiDetector.alert        - Receive alert messages.
+LumoAiDetector.bypass       - Completely exempt a player from detection.
 ```
 
 ## Training your own model
@@ -261,6 +270,24 @@ plugins/LumoAiDetector/runtime.yml
 
 ## Changelog
 
+### 0.1.1 (planned)
+
+- Fixed memory leak: alert history is now cleared when a player disconnects.
+- Fixed hardcoded English text in /lad dataset info (now uses messages.yml).
+- Fixed IO executor not waiting for pending writes on shutdown.
+- Fixed pruneStatesIfNeeded running on every PlayerMoveEvent; now throttled to once per 5s.
+- Fixed path traversal: Windows drive-letter paths in dataset-path config are now rejected.
+- Fixed saveModel writing metadata file twice; SHA-256 is computed before the first write.
+- Optimized DatasetCsv.row() by replacing String.format with ThreadLocal DecimalFormat.
+- Added LumoAiDetector.bypass permission to exclude players from detection.
+- Added detector.disabled-worlds config list.
+- Added detector.whitelisted-uuids config list.
+- Added punishment.notify-player and punishment.notify-player-message config.
+- Added /lad dataset trim <rows> command.
+- Added {world} and {ping} placeholders for punishment commands.
+- Added performance.async-prediction config option.
+- Improved target() to skip entities outside the sphere radius.
+
 ### 0.1.0 (2026-06-02)
 
 Major stabilization release. See the [full changelog](https://github.com/isLumo/LumoAiDetector/releases/tag/v0.1.0).
@@ -291,6 +318,6 @@ Unofficial forks should use a clearly different name and say that they are based
 
 ## Current status
 
-Version `0.1.0` is a major stability release. Test it on a local server before using it on production. Keep backups of models and datasets. If something breaks, open an issue with server version, Java version, plugin version, logs, config changes and what command or combat action caused the problem.
+Version `0.1.1` is a maintenance release with memory leak fixes, performance improvements, and new config options. Test it on a local server before moving to production. Keep backups of models and datasets. If something breaks, open an issue with server version, Java version, plugin version, logs, config changes and what command or combat action caused the problem.
 
 This project is free. I want it to stay useful, understandable and honest.

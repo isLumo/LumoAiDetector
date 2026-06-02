@@ -75,6 +75,10 @@ public final class ModelMetadata {
     }
 
     public void save(File file) throws IOException {
+        saveWithSha256(file, null);
+    }
+
+    public void saveWithSha256(File file, String sha256) throws IOException {
         YamlConfiguration config = new YamlConfiguration();
         config.set("name", name);
         config.set("file", fileName);
@@ -95,6 +99,9 @@ public final class ModelMetadata {
         config.set("forest.features", featureCount);
         config.set("plugin-version", pluginVersion);
         config.set("server-version", serverVersion);
+        if (sha256 != null && !sha256.isEmpty()) {
+            config.set("sha256", sha256);
+        }
         File parent = file.getParentFile();
         if (parent != null && !parent.exists()) {
             parent.mkdirs();

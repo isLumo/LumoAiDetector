@@ -17,6 +17,7 @@ import com.lumskyy.lumoaidetector.util.ResourceService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -55,7 +56,7 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         this.modelRepository = new ModelRepository(this, settings);
         this.runtimeStateService = new RuntimeStateService(this);
         this.modelService = new ModelService(this, settings, messages, platform, modelRepository, runtimeStateService, timerExecutor, trainExecutor, statsService);
-        this.detectionService = new DetectionService(settings, messages, platform, recordingService, modelService, statsService);
+        this.detectionService = new DetectionService(settings, messages, platform, recordingService, modelService, statsService, ioExecutor);
         getServer().getPluginManager().registerEvents(new DetectionListener(detectionService, this), this);
         LadCommand ladCommand = new LadCommand(this);
         PluginCommand command = getCommand("lad");
@@ -83,6 +84,13 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         }
         if (ioExecutor != null) {
             ioExecutor.shutdown();
+            try {
+                if (!ioExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    getLogger().warning("IO executor did not finish in 10s, some writes may be lost.");
+                }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

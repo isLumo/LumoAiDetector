@@ -35,3 +35,6 @@ permissions:
     default: op
   LumoAiDetector.alert:
     default: op
+  LumoAiDetector.bypass:
+    default: false
+    description: Exempts a player from AI detection entirely.
