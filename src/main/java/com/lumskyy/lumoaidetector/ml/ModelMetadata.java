@@ -23,8 +23,16 @@ public final class ModelMetadata {
     private final int featureCount;
     private final String pluginVersion;
     private final String serverVersion;
+    private final boolean metricsHoldout;
+    private final String metricsSource;
+    private final long seed;
+    private final boolean balancedClasses;
 
     public ModelMetadata(String name, String fileName, long createdAt, long trainingMillis, int rows, int legitRows, int cheaterRows, int validationRows, double accuracy, double precision, double recall, double f1, double falsePositiveRate, int treeCount, int featureCount, String pluginVersion, String serverVersion) {
+        this(name, fileName, createdAt, trainingMillis, rows, legitRows, cheaterRows, validationRows, accuracy, precision, recall, f1, falsePositiveRate, treeCount, featureCount, pluginVersion, serverVersion, true, "holdout", 0L, false);
+    }
+
+    public ModelMetadata(String name, String fileName, long createdAt, long trainingMillis, int rows, int legitRows, int cheaterRows, int validationRows, double accuracy, double precision, double recall, double f1, double falsePositiveRate, int treeCount, int featureCount, String pluginVersion, String serverVersion, boolean metricsHoldout, String metricsSource, long seed, boolean balancedClasses) {
         this.name = name;
         this.fileName = fileName;
         this.createdAt = createdAt;
@@ -42,6 +50,10 @@ public final class ModelMetadata {
         this.featureCount = featureCount;
         this.pluginVersion = pluginVersion;
         this.serverVersion = serverVersion;
+        this.metricsHoldout = metricsHoldout;
+        this.metricsSource = metricsSource;
+        this.seed = seed;
+        this.balancedClasses = balancedClasses;
     }
 
     public static ModelMetadata minimal(String name, File file) {
@@ -70,7 +82,11 @@ public final class ModelMetadata {
                 config.getInt("forest.trees", 0),
                 config.getInt("forest.features", 120),
                 config.getString("plugin-version", "unknown"),
-                config.getString("server-version", "unknown")
+                config.getString("server-version", "unknown"),
+                config.getBoolean("metrics.holdout", true),
+                config.getString("metrics.source", "holdout"),
+                config.getLong("training.seed", 0L),
+                config.getBoolean("training.balanced-classes", false)
         );
     }
 
@@ -95,8 +111,12 @@ public final class ModelMetadata {
         config.set("metrics.recall", recall);
         config.set("metrics.f1", f1);
         config.set("metrics.false-positive-rate", falsePositiveRate);
+        config.set("metrics.holdout", metricsHoldout);
+        config.set("metrics.source", metricsSource);
         config.set("forest.trees", treeCount);
         config.set("forest.features", featureCount);
+        config.set("training.seed", seed);
+        config.set("training.balanced-classes", balancedClasses);
         config.set("plugin-version", pluginVersion);
         config.set("server-version", serverVersion);
         if (sha256 != null && !sha256.isEmpty()) {
@@ -175,6 +195,22 @@ public final class ModelMetadata {
 
     public String serverVersion() {
         return serverVersion;
+    }
+
+    public boolean metricsHoldout() {
+        return metricsHoldout;
+    }
+
+    public String metricsSource() {
+        return metricsSource;
+    }
+
+    public long seed() {
+        return seed;
+    }
+
+    public boolean balancedClasses() {
+        return balancedClasses;
     }
 
     private static String baseName(File file) {

@@ -149,12 +149,17 @@ public final class ModelRepository {
         if (metadataFile.exists()) {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(metadataFile);
             String storedSha = config.getString("sha256", "");
+            // Integrity/corruption check only. The hash lives next to the file, so
+            // anyone who can replace the .bin can also rewrite this hash; this is not
+            // tamper protection, only detection of accidental corruption.
             if (!storedSha.isEmpty() && !storedSha.equals(currentSha)) {
-                plugin.getLogger().warning("SHA-256 mismatch for model " + rawName + ". File may have been tampered with.");
-                throw new IOException("Model file SHA-256 mismatch: possible tampering detected");
+                plugin.getLogger().warning("SHA-256 mismatch for model " + rawName + ". File may be corrupted.");
+                throw new IOException("Model file SHA-256 mismatch: file may be corrupted");
             }
         }
-        try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(info.modelFile()))) {
+        // Constrain deserialization to an allow-list of model/JDK classes so a
+        // malicious .bin cannot run gadget chains during readObject().
+        try (ObjectInputStream input = new SecureObjectInputStream(new FileInputStream(info.modelFile()))) {
             Object object = input.readObject();
             if (!(object instanceof RandomForest)) {
                 throw new IOException("File is not RandomForest model");
@@ -278,7 +283,7 @@ public final class ModelRepository {
         return new File(dir, cleanName(name) + ".yml");
     }
 
-    private String cleanName(String rawName) {
+    static String cleanName(String rawName) {
         if (rawName == null) {
             return null;
         }

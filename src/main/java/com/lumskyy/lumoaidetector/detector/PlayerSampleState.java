@@ -29,19 +29,8 @@ public final class PlayerSampleState {
     public double multiplier(double yawDelta, double pitchDelta, PluginSettings settings) {
         addGcdValue(yawDelta, settings);
         addGcdValue(pitchDelta, settings);
-        long gcd = 0L;
-        for (Long value : gcdValues) {
-            long current = value.longValue();
-            if (current <= 0L) {
-                continue;
-            }
-            gcd = gcd == 0L ? current : gcd(gcd, current);
-        }
-        double multiplier = gcd <= 0L ? settings.defaultMultiplier : gcd / settings.gcdScale;
-        if (Double.isNaN(multiplier) || Double.isInfinite(multiplier) || multiplier < settings.gcdMinMultiplier) {
-            return settings.defaultMultiplier;
-        }
-        return multiplier;
+        long gcd = GcdMath.combinedGcd(gcdValues);
+        return GcdMath.multiplier(gcd, settings.gcdScale, settings.defaultMultiplier, settings.gcdMinMultiplier);
     }
 
     public void addSample(RotationSample sample, int maxSize) {
@@ -101,16 +90,5 @@ public final class PlayerSampleState {
         while (gcdValues.size() > settings.gcdHistorySize) {
             gcdValues.removeFirst();
         }
-    }
-
-    private long gcd(long a, long b) {
-        long x = Math.abs(a);
-        long y = Math.abs(b);
-        while (y != 0L) {
-            long temp = x % y;
-            x = y;
-            y = temp;
-        }
-        return x;
     }
 }

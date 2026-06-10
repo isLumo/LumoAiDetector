@@ -133,4 +133,59 @@ public final class DatasetCsv {
         }
         return new DatasetSnapshot(x, y, legit, cheater, skipped);
     }
+
+    public static DatasetCounts count(File file) throws IOException {
+        if (!file.exists()) {
+            return new DatasetCounts(0, 0, 0);
+        }
+        int legit = 0;
+        int cheater = 0;
+        int skipped = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty() || line.startsWith("dx_1,")) {
+                    continue;
+                }
+                String[] parts = line.split(",", -1);
+                if (parts.length != COLUMN_COUNT) {
+                    skipped++;
+                    continue;
+                }
+                boolean valid = true;
+                for (int i = 0; i < FEATURE_COUNT; i++) {
+                    double value;
+                    try {
+                        value = Double.parseDouble(parts[i]);
+                    } catch (NumberFormatException exception) {
+                        valid = false;
+                        break;
+                    }
+                    if (Double.isNaN(value) || Double.isInfinite(value)) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (!valid) {
+                    skipped++;
+                    continue;
+                }
+                int label;
+                try {
+                    label = Integer.parseInt(parts[FEATURE_COUNT].trim());
+                } catch (NumberFormatException exception) {
+                    skipped++;
+                    continue;
+                }
+                if (label == 0) {
+                    legit++;
+                } else if (label == 1) {
+                    cheater++;
+                } else {
+                    skipped++;
+                }
+            }
+        }
+        return new DatasetCounts(legit, cheater, skipped);
+    }
 }

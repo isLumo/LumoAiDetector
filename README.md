@@ -20,8 +20,6 @@
   ·
   <a href="#configuration">Config</a>
   ·
-  <a href="#changelog">Changelog</a>
-  ·
   <a href="#license-and-forks">License</a>
 </p>
 
@@ -100,11 +98,18 @@ If you only record one legit player and one cheat profile, you are teaching the 
 - /lad dataset trim <rows> to shrink the dataset in game.
 - Extended punishment placeholders: {world}, {ping}.
 - Async prediction mode for high-population servers.
+- Reproducible training via a configurable RNG seed.
+- Automatic class balancing for uneven legit/cheater datasets.
+- Honest metrics: training notes when no validation holdout is used.
+- Model comparison with `/lad models compare <a> <b>`.
+- Optional ping band to skip lag-heavy windows.
+- Hardened model loading with an allow-list deserializer.
+- JUnit test suite for the core math and helpers.
 
 ## Install
 
 1. Build the jar.
-2. Put `build/libs/LumoAiDetector-0.1.1.jar` into your server `plugins` folder.
+2. Put `build/libs/LumoAiDetector-0.1.2.jar` into your server `plugins` folder.
 3. Start the server once.
 4. Edit `plugins/LumoAiDetector/config.yml` only if you know what you want to tune.
 5. Edit `plugins/LumoAiDetector/messages.yml` if you want different text.
@@ -142,7 +147,7 @@ Gradle -> Tasks -> shadow -> shadowJar
 The plugin jar will be here:
 
 ```text
-build/libs/LumoAiDetector-0.1.1.jar
+build/libs/LumoAiDetector-0.1.2.jar
 ```
 
 Console build:
@@ -172,6 +177,7 @@ gradle clean shadowJar
 | `/lad deactivate` | Disable the active model. |
 | `/lad models [page]` | List trained models with active/delete buttons. |
 | `/lad models info <model>` | Show detailed model metrics (accuracy, precision, recall, F1). |
+| `/lad models compare <a> <b>` | Compare two models side by side. |
 | `/lad delete <model>` | Move a model to temporary backup. |
 
 ### Backups
@@ -282,6 +288,7 @@ Unofficial forks should use a clearly different name and say that they are based
 
 ## Current status
 
-Version `0.1.1` is a maintenance release with memory leak fixes, performance improvements, and new config options. Test it on a local server before moving to production. Keep backups of models and datasets. If something breaks, open an issue with server version, Java version, plugin version, logs, config changes and what command or combat action caused the problem.
+Version `0.1.2` builds on `0.1.1` with reproducible training, class balancing, honest metrics, and concurrency hardening. Test it on a local server before moving to production. Keep backups of models and datasets. If something breaks, open an issue with server version, Java version, plugin version, logs, config changes and what command or combat action caused the problem.
 
 This project is free. I want it to stay useful, understandable and honest.
+

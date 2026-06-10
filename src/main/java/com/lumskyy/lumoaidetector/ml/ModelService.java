@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import org.bukkit.command.CommandSender;
+import smile.classification.DecisionTree;
 import smile.classification.RandomForest;
 
 public final class ModelService {
@@ -189,14 +190,17 @@ public final class ModelService {
             if (totalRows > 50000) {
                 platform.broadcastPermission("LumoAiDetector.train", "Dataset has " + totalRows + " rows. Training may take a while and use significant RAM.");
             }
-            if (totalRows < settings.minTotalRows || snapshot.legitRows() < settings.minLegitRows || snapshot.cheaterRows() < settings.minCheaterRows) {
+            if (totalRows < settings.minTotalRows || snapshot.legitRows() < Math.max(1, settings.minLegitRows) || snapshot.cheaterRows() < Math.max(1, settings.minCheaterRows)) {
                 failTraining("not-enough-data");
                 platform.send(sender, messages.get("train.not-enough-data", messages.placeholders("rows", totalRows, "legit", snapshot.legitRows(), "cheater", snapshot.cheaterRows())));
                 return;
             }
             platform.send(sender, messages.get("train.started", messages.placeholders("rows", totalRows)));
             trainingPhase = "split";
-            Split split = split(snapshot);
+            long effectiveSeed = settings.trainingSeed != 0L ? settings.trainingSeed : System.nanoTime();
+            smile.math.Math.setSeed(effectiveSeed);
+            plugin.getLogger().info("Training with seed " + effectiveSeed + (settings.trainingSeed != 0L ? " (configured)" : " (random)"));
+            Split split = split(snapshot, effectiveSeed);
             trainingPhase = "random-forest";
             int randomFeatures = settings.randomFeatures > 0 ? settings.randomFeatures : Math.max(1, (int) Math.floor(Math.sqrt(DatasetCsv.FEATURE_COUNT)));
             int adaptiveMaxNodes = settings.maxNodes;
@@ -222,17 +226,14 @@ public final class ModelService {
                     }
                 }
             }
-            RandomForest.Trainer trainer = new RandomForest.Trainer(settings.randomForestTrees, randomFeatures);
-            trainer.setNumRandomFeatures(randomFeatures);
-            trainer.setMaxNodes(adaptiveMaxNodes);
-            trainer.setNodeSize(adaptiveNodeSize);
             long started = System.currentTimeMillis();
-            RandomForest model = trainer.train(split.trainX, split.trainY);
+            int[] classWeight = settings.balanceClasses ? classWeights(split.trainY, settings.classWeightCap) : null;
+            RandomForest model = trainForest(split.trainX, split.trainY, settings.randomForestTrees, adaptiveMaxNodes, adaptiveNodeSize, randomFeatures, classWeight);
             trainingPhase = "metrics";
             Metrics metrics = metrics(model, split.metricX, split.metricY);
             long trainingMillis = System.currentTimeMillis() - started;
             String name = "model-" + Formats.fileDate(System.currentTimeMillis());
-            ModelMetadata metadata = new ModelMetadata(name, name + ".bin", System.currentTimeMillis(), trainingMillis, totalRows, snapshot.legitRows(), snapshot.cheaterRows(), split.metricY.length, metrics.accuracy, metrics.precision, metrics.recall, metrics.f1, metrics.falsePositiveRate, model.size(), DatasetCsv.FEATURE_COUNT, plugin.getDescription().getVersion(), platform.serverName());
+            ModelMetadata metadata = new ModelMetadata(name, name + ".bin", System.currentTimeMillis(), trainingMillis, totalRows, snapshot.legitRows(), snapshot.cheaterRows(), split.metricY.length, metrics.accuracy, metrics.precision, metrics.recall, metrics.f1, metrics.falsePositiveRate, model.size(), DatasetCsv.FEATURE_COUNT, plugin.getDescription().getVersion(), platform.serverName(), split.holdout, split.holdout ? "holdout" : "train", effectiveSeed, classWeight != null);
             trainingPhase = "saving";
             repository.saveModel(model, metadata);
             if (settings.autoActivateAfterTraining) {
@@ -241,7 +242,8 @@ public final class ModelService {
                 runtimeStateService.setActiveModel(name);
             }
             statsService.save();
-            String success = messages.get("train.success", messages.placeholders("model", name, "time", Formats.duration(trainingMillis), "accuracy", Formats.percent(metrics.accuracy), "precision", Formats.percent(metrics.precision), "recall", Formats.percent(metrics.recall), "f1", Formats.percent(metrics.f1)));
+            String metricsNote = split.holdout ? "" : " " + messages.get("train.metrics-train-only");
+            String success = messages.get("train.success", messages.placeholders("model", name, "time", Formats.duration(trainingMillis), "accuracy", Formats.percent(metrics.accuracy), "precision", Formats.percent(metrics.precision), "recall", Formats.percent(metrics.recall), "f1", Formats.percent(metrics.f1))) + metricsNote;
             platform.broadcastPermission("LumoAiDetector.train", success);
             trainingPhase = "idle";
         } catch (Throwable throwable) {
@@ -278,7 +280,41 @@ public final class ModelService {
         }
     }
 
-    private Split split(DatasetSnapshot snapshot) {
+    private RandomForest trainForest(double[][] trainX, int[] trainY, int trees, int maxNodes, int nodeSize, int randomFeatures, int[] classWeight) {
+        if (classWeight == null) {
+            RandomForest.Trainer trainer = new RandomForest.Trainer(trees, randomFeatures);
+            trainer.setNumRandomFeatures(randomFeatures);
+            trainer.setMaxNodes(maxNodes);
+            trainer.setNodeSize(nodeSize);
+            return trainer.train(trainX, trainY);
+        }
+        return new RandomForest(null, trainX, trainY, trees, maxNodes, nodeSize, randomFeatures, 1.0D, DecisionTree.SplitRule.GINI, classWeight);
+    }
+
+    private int[] classWeights(int[] trainY, double cap) {
+        int legit = 0;
+        int cheater = 0;
+        for (int label : trainY) {
+            if (label == 0) {
+                legit++;
+            } else {
+                cheater++;
+            }
+        }
+        if (legit == 0 || cheater == 0) {
+            return null;
+        }
+        int max = Math.max(legit, cheater);
+        double legitWeight = (double) max / legit;
+        double cheaterWeight = (double) max / cheater;
+        legitWeight = Math.min(legitWeight, cap);
+        cheaterWeight = Math.min(cheaterWeight, cap);
+        int legitW = Math.max(1, (int) Math.round(legitWeight));
+        int cheaterW = Math.max(1, (int) Math.round(cheaterWeight));
+        return new int[]{legitW, cheaterW};
+    }
+
+    private Split split(DatasetSnapshot snapshot, long seed) {
         int rows = snapshot.rows();
         int[] y = snapshot.y();
         List<Integer> legitIdx = new ArrayList<Integer>();
@@ -294,8 +330,8 @@ public final class ModelService {
         if (validation <= 0 || rows - validation < 2 || legitIdx.size() < 2 || cheatIdx.size() < 2) {
             validation = 0;
         }
-        Collections.shuffle(legitIdx, new Random(System.nanoTime()));
-        Collections.shuffle(cheatIdx, new Random(System.nanoTime()));
+        Collections.shuffle(legitIdx, new Random(seed));
+        Collections.shuffle(cheatIdx, new Random(seed ^ 0x9E3779B97F4A7C15L));
         double[][] x = snapshot.x();
         if (validation == 0) {
             double[][] trainX = new double[rows][DatasetCsv.FEATURE_COUNT];
@@ -304,7 +340,7 @@ public final class ModelService {
                 trainX[i] = x[i];
                 trainY[i] = y[i];
             }
-            return new Split(trainX, trainY, trainX, trainY);
+            return new Split(trainX, trainY, trainX, trainY, false);
         }
         int legitVal = Math.max(1, legitIdx.size() * settings.validationPercent / 100);
         int cheatVal = Math.max(1, cheatIdx.size() * settings.validationPercent / 100);
@@ -341,7 +377,7 @@ public final class ModelService {
             metricY[m] = y[src];
             m++;
         }
-        return new Split(trainX, trainY, metricX, metricY);
+        return new Split(trainX, trainY, metricX, metricY, true);
     }
 
     private Metrics metrics(RandomForest model, double[][] x, int[] y) {
@@ -361,13 +397,8 @@ public final class ModelService {
                 fn++;
             }
         }
-        double total = Math.max(1, y.length);
-        double accuracy = (tp + tn) * 100.0D / total;
-        double precision = tp + fp == 0 ? 0.0D : tp * 100.0D / (tp + fp);
-        double recall = tp + fn == 0 ? 0.0D : tp * 100.0D / (tp + fn);
-        double f1 = precision + recall == 0 ? 0.0D : 2.0D * precision * recall / (precision + recall);
-        double falsePositiveRate = fp + tn == 0 ? 0.0D : fp * 100.0D / (fp + tn);
-        return new Metrics(accuracy, precision, recall, f1, falsePositiveRate);
+        MetricsMath m = MetricsMath.of(tp, tn, fp, fn);
+        return new Metrics(m.accuracy(), m.precision(), m.recall(), m.f1(), m.falsePositiveRate());
     }
 
     private static final class Split {
@@ -375,12 +406,14 @@ public final class ModelService {
         private final int[] trainY;
         private final double[][] metricX;
         private final int[] metricY;
+        private final boolean holdout;
 
-        private Split(double[][] trainX, int[] trainY, double[][] metricX, int[] metricY) {
+        private Split(double[][] trainX, int[] trainY, double[][] metricX, int[] metricY, boolean holdout) {
             this.trainX = trainX;
             this.trainY = trainY;
             this.metricX = metricX;
             this.metricY = metricY;
+            this.holdout = holdout;
         }
     }
 

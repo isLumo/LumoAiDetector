@@ -16,7 +16,9 @@ import com.lumskyy.lumoaidetector.util.NamedThreadFactory;
 import com.lumskyy.lumoaidetector.util.ResourceService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -26,6 +28,7 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
     private MessageService messages;
     private Platform platform;
     private ExecutorService ioExecutor;
+    private ThreadPoolExecutor predictExecutor;
     private ScheduledExecutorService timerExecutor;
     private ExecutorService trainExecutor;
     private StatsService statsService;
@@ -46,6 +49,11 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         this.messages.reload();
         this.platform = new Platform(this);
         this.ioExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("LumoAiDetector-IO"));
+        int predictThreads = Math.max(1, settings.predictionThreads);
+        this.predictExecutor = new ThreadPoolExecutor(predictThreads, predictThreads, 30L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>(2000), new NamedThreadFactory("LumoAiDetector-Predict"),
+                new ThreadPoolExecutor.DiscardOldestPolicy());
+        this.predictExecutor.allowCoreThreadTimeOut(true);
         this.timerExecutor = Executors.newScheduledThreadPool(2, new NamedThreadFactory("LumoAiDetector-Timer"));
         this.trainExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("LumoAiDetector-Train"));
         this.statsService = new StatsService(this);
@@ -56,7 +64,7 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
         this.modelRepository = new ModelRepository(this, settings);
         this.runtimeStateService = new RuntimeStateService(this);
         this.modelService = new ModelService(this, settings, messages, platform, modelRepository, runtimeStateService, timerExecutor, trainExecutor, statsService);
-        this.detectionService = new DetectionService(settings, messages, platform, recordingService, modelService, statsService, ioExecutor);
+        this.detectionService = new DetectionService(settings, messages, platform, recordingService, modelService, statsService, predictExecutor);
         getServer().getPluginManager().registerEvents(new DetectionListener(detectionService, this), this);
         LadCommand ladCommand = new LadCommand(this);
         PluginCommand command = getCommand("lad");
@@ -70,17 +78,13 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // 1. Stop accepting new prediction work.
+        if (predictExecutor != null) {
+            predictExecutor.shutdownNow();
+        }
+        // 2. Stop accepting new dataset writes, then drain queued writes.
         if (datasetService != null) {
-            datasetService.shutdown();
-        }
-        if (statsService != null) {
-            statsService.save();
-        }
-        if (timerExecutor != null) {
-            timerExecutor.shutdownNow();
-        }
-        if (trainExecutor != null) {
-            trainExecutor.shutdownNow();
+            datasetService.stopAcceptingWrites();
         }
         if (ioExecutor != null) {
             ioExecutor.shutdown();
@@ -91,6 +95,21 @@ public final class LumoAiDetectorPlugin extends JavaPlugin {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
+        }
+        // 3. Close the writer only after the queue is drained, so no task re-opens it.
+        if (datasetService != null) {
+            datasetService.shutdown();
+        }
+        // 4. Persist stats.
+        if (statsService != null) {
+            statsService.save();
+        }
+        // 5. Stop the remaining executors.
+        if (timerExecutor != null) {
+            timerExecutor.shutdownNow();
+        }
+        if (trainExecutor != null) {
+            trainExecutor.shutdownNow();
         }
     }
 

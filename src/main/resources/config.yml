@@ -1,4 +1,4 @@
-# LumoAiDetector 0.1.1
+# LumoAiDetector 0.1.2
 # Config is created in plugins/LumoAiDetector/config.yml.
 # Default values are conservative: the plugin collects clean windows, writes alerts, and does not auto-ban.
 # Auto-punishment should only be enabled after your own dataset, model validation, and server testing.
@@ -39,6 +39,12 @@ detector:
   disabled-worlds: []
   # Players exempt from detection by UUID.
   whitelisted-uuids: []
+  # Optional ping band (milliseconds). Windows are skipped when the player's ping
+  # is outside [min-ping-ms, max-ping-ms], to reduce lag-driven false windows.
+  # Set to -1 to disable a bound (default: both disabled). Skipped silently when
+  # ping is unavailable.
+  min-ping-ms: -1
+  max-ping-ms: -1
 
 alert:
   # Alerts are visible to players with the LumoAiDetector.alert permission.
@@ -95,6 +101,15 @@ training:
   max-nodes: 100
   # Minimum leaf size.
   node-size: 5
+  # RNG seed for reproducible training. 0 = random seed each run. Any other value
+  # makes training deterministic for the same dataset and settings.
+  seed: 0
+  # Balance classes by weighting the minority class up during training. Helps when
+  # legit and cheater row counts are very uneven. Set false for the old behavior.
+  balance-classes: true
+  # Upper bound for the automatic class weight, so a tiny minority class cannot
+  # dominate the forest. 1.0 disables weighting in practice.
+  class-weight-cap: 10.0
   # How often to broadcast training progress to admins.
   progress-interval-seconds: 5
 
@@ -115,3 +130,7 @@ performance:
   max-player-states: 500
   # Run ML predictions off the main thread. Helps on servers with many players.
   async-prediction: false
+  # Worker threads used when async-prediction is true. Predictions run on a
+  # dedicated pool that is separate from the dataset writer, so heavy inference
+  # never blocks dataset recording.
+  prediction-threads: 1

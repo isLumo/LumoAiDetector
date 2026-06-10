@@ -24,6 +24,8 @@ public final class DatasetService {
     private final AtomicInteger writtenRows = new AtomicInteger();
     private volatile PluginSettings settings;
     private volatile BufferedWriter writer;
+    private volatile boolean acceptingWrites = true;
+    private volatile boolean closed = false;
 
     public DatasetService(LumoAiDetectorPlugin plugin, PluginSettings settings, ExecutorService executor, StatsService statsService) {
         this.plugin = plugin;
@@ -34,6 +36,10 @@ public final class DatasetService {
 
     public void updateSettings(PluginSettings settings) {
         this.settings = settings;
+    }
+
+    public ExecutorService ioExecutor() {
+        return executor;
     }
 
     public File file() {
@@ -48,17 +54,30 @@ public final class DatasetService {
         if (features.length != DatasetCsv.FEATURE_COUNT) {
             return;
         }
+        if (!acceptingWrites) {
+            return;
+        }
         final double[] copy = Arrays.copyOf(features, features.length);
-        executor.submit(new Runnable() {
-            @Override
-            public void run() {
-                write(label, copy);
-            }
-        });
+        try {
+            executor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    if (closed) {
+                        return;
+                    }
+                    write(label, copy);
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+        }
     }
 
     public DatasetSnapshot snapshot() throws IOException {
         return DatasetCsv.read(file(), settings.maxDatasetRows);
+    }
+
+    public DatasetCounts counts() throws IOException {
+        return DatasetCsv.count(file());
     }
 
     public void flushPending() {
@@ -90,23 +109,33 @@ public final class DatasetService {
                         plugin.platform().send(sender, "Dataset file not found.");
                         return;
                     }
-                    DatasetSnapshot snap = DatasetCsv.read(src, 0);
-                    int total = snap.rows();
+                    int total = countDataLines(src);
                     if (total <= keepRows) {
                         plugin.platform().send(sender, "Dataset already has " + total + " rows, nothing to trim.");
                         return;
                     }
+                    int start = total - keepRows;
                     File tmp = new File(src.getParentFile(), src.getName() + ".trim.tmp");
-                    try (BufferedWriter w = new BufferedWriter(new FileWriter(tmp))) {
-                        w.write(DatasetCsv.header());
-                        w.newLine();
-                        int start = total - keepRows;
-                        for (int i = start; i < total; i++) {
-                            w.write(DatasetCsv.row(snap.x()[i], snap.y()[i] == 1 ? RecordLabel.CHEATER : RecordLabel.LEGIT));
+                    closeWriter();
+                    try (BufferedReader reader = new BufferedReader(new FileReader(src));
+                         BufferedWriter w = new BufferedWriter(new FileWriter(tmp))) {
+                        if (settings.writeDatasetHeader) {
+                            w.write(DatasetCsv.header());
                             w.newLine();
                         }
+                        String line;
+                        int index = 0;
+                        while ((line = reader.readLine()) != null) {
+                            if (line.trim().isEmpty() || line.startsWith("dx_1,")) {
+                                continue;
+                            }
+                            if (index >= start) {
+                                w.write(line);
+                                w.newLine();
+                            }
+                            index++;
+                        }
                     }
-                    closeWriter();
                     Files.move(tmp.toPath(), src.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     writtenRows.set(keepRows);
                     plugin.platform().send(sender, "Dataset trimmed: " + total + " -> " + keepRows + " rows.");
@@ -117,7 +146,27 @@ public final class DatasetService {
         });
     }
 
+    private int countDataLines(File src) throws IOException {
+        int total = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(src))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty() || line.startsWith("dx_1,")) {
+                    continue;
+                }
+                total++;
+            }
+        }
+        return total;
+    }
+
+    public void stopAcceptingWrites() {
+        acceptingWrites = false;
+    }
+
     public void shutdown() {
+        acceptingWrites = false;
+        closed = true;
         closeWriter();
     }
 
@@ -145,6 +194,9 @@ public final class DatasetService {
             w = writer;
             if (w != null) {
                 return w;
+            }
+            if (closed) {
+                throw new IOException("Dataset writer is closed");
             }
             ensureFile();
             w = new BufferedWriter(new FileWriter(file(), true));

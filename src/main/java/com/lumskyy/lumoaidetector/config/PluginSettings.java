@@ -45,6 +45,9 @@ public final class PluginSettings {
     public final int randomFeatures;
     public final int maxNodes;
     public final int nodeSize;
+    public final long trainingSeed;
+    public final boolean balanceClasses;
+    public final double classWeightCap;
     public final int progressIntervalSeconds;
     public final boolean autoActivateAfterTraining;
     public final String configActiveModel;
@@ -55,6 +58,9 @@ public final class PluginSettings {
     public final Set<String> disabledWorlds;
     public final Set<java.util.UUID> whitelistedUuids;
     public final boolean asyncPrediction;
+    public final int predictionThreads;
+    public final int minPingMs;
+    public final int maxPingMs;
 
     private PluginSettings(FileConfiguration config) {
         this.debug = config.getBoolean("settings.debug", false);
@@ -89,13 +95,16 @@ public final class PluginSettings {
         this.datasetPath = cleanRelativePath(config.getString("recording.dataset-path", "data/dataset.csv"));
         this.maxDatasetRows = Math.max(0, config.getInt("recording.max-dataset-rows", 100000));
         this.minTotalRows = Math.max(1, config.getInt("training.min-total-rows", 100));
-        this.minLegitRows = Math.max(0, config.getInt("training.min-legit-rows", 25));
-        this.minCheaterRows = Math.max(0, config.getInt("training.min-cheater-rows", 25));
+        this.minLegitRows = Math.max(1, config.getInt("training.min-legit-rows", 25));
+        this.minCheaterRows = Math.max(1, config.getInt("training.min-cheater-rows", 25));
         this.validationPercent = Math.max(0, Math.min(80, config.getInt("training.validation-percent", 20)));
         this.randomForestTrees = Math.max(1, config.getInt("training.random-forest-trees", 100));
         this.randomFeatures = Math.max(0, config.getInt("training.random-features", 0));
         this.maxNodes = Math.max(2, config.getInt("training.max-nodes", 100));
         this.nodeSize = Math.max(1, config.getInt("training.node-size", 5));
+        this.trainingSeed = config.getLong("training.seed", 0L);
+        this.balanceClasses = config.getBoolean("training.balance-classes", true);
+        this.classWeightCap = Math.max(1.0D, config.getDouble("training.class-weight-cap", 10.0D));
         this.progressIntervalSeconds = Math.max(1, config.getInt("training.progress-interval-seconds", 5));
         this.autoActivateAfterTraining = config.getBoolean("models.auto-activate-after-training", true);
         this.configActiveModel = config.getString("models.active-model", "");
@@ -117,6 +126,9 @@ public final class PluginSettings {
         }
         this.whitelistedUuids = java.util.Collections.unmodifiableSet(uuids);
         this.asyncPrediction = config.getBoolean("performance.async-prediction", false);
+        this.predictionThreads = Math.max(1, config.getInt("performance.prediction-threads", 1));
+        this.minPingMs = config.getInt("detector.min-ping-ms", -1);
+        this.maxPingMs = config.getInt("detector.max-ping-ms", -1);
     }
 
     public static PluginSettings from(FileConfiguration config) {
@@ -133,7 +145,7 @@ public final class PluginSettings {
         return value;
     }
 
-    private static String cleanRelativePath(String value) {
+    static String cleanRelativePath(String value) {
         if (value == null || value.trim().isEmpty()) {
             return "data/dataset.csv";
         }

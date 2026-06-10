@@ -1,7 +1,7 @@
 package com.lumskyy.lumoaidetector.command;
 
 import com.lumskyy.lumoaidetector.LumoAiDetectorPlugin;
-import com.lumskyy.lumoaidetector.dataset.DatasetSnapshot;
+import com.lumskyy.lumoaidetector.dataset.DatasetCounts;
 import com.lumskyy.lumoaidetector.dataset.RecordLabel;
 import com.lumskyy.lumoaidetector.dataset.RecordSession;
 import com.lumskyy.lumoaidetector.dataset.RecordToggleResult;
@@ -191,13 +191,19 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             if (!has(sender, "LumoAiDetector.models")) {
                 return Collections.emptyList();
             }
-            return filter(list("info"), args[1]);
+            return filter(list("info", "compare"), args[1]);
         }
         if (sub.equals("models") && args.length == 3 && args[1].equalsIgnoreCase("info")) {
             if (!has(sender, "LumoAiDetector.models")) {
                 return Collections.emptyList();
             }
             return filter(modelNames(), args[2]);
+        }
+        if (sub.equals("models") && (args.length == 3 || args.length == 4) && args[1].equalsIgnoreCase("compare")) {
+            if (!has(sender, "LumoAiDetector.models")) {
+                return Collections.emptyList();
+            }
+            return filter(modelNames(), args[args.length - 1]);
         }
         if ((sub.equals("deleted") || sub.equals("delete") || sub.equals("del")) && args.length == 2) {
             if (!has(sender, "LumoAiDetector.delete")) {
@@ -227,38 +233,44 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
 
     private void help(CommandSender sender) {
         messages.send(sender, "help.header");
-        String[] keys = new String[]{"help.line-reload", "help.line-status", "help.line-record", "help.line-record-info", "help.line-record-stop", "help.line-train", "help.line-active", "help.line-deactive", "help.line-check", "help.line-models", "help.line-models-info", "help.line-deleted", "help.line-dataset", "help.line-backup"};
+        String[] keys = new String[]{"help.line-reload", "help.line-status", "help.line-record", "help.line-record-info", "help.line-record-stop", "help.line-train", "help.line-active", "help.line-deactive", "help.line-check", "help.line-models", "help.line-models-info", "help.line-models-compare", "help.line-deleted", "help.line-dataset", "help.line-backup"};
         for (String key : keys) {
             sender.sendMessage(messages.get(key));
         }
     }
 
     private void statusAsync(final CommandSender sender) {
-        plugin.platform().runGlobal(new Runnable() {
+        plugin.datasetService().ioExecutor().submit(new Runnable() {
             @Override
             public void run() {
-                DatasetSnapshot snapshot = null;
+                DatasetCounts counts = null;
                 try {
-                    snapshot = plugin.datasetService().snapshot();
+                    counts = plugin.datasetService().counts();
                 } catch (Exception ignored) {
                 }
-                String active = plugin.modelService().activeModelName();
-                if (active == null || active.isEmpty()) {
-                    active = messages.get("model.none-active");
-                }
-                messages.send(sender, "status.header");
-                sender.sendMessage(messages.get("status.version", messages.placeholders("version", plugin.getDescription().getVersion())));
-                sender.sendMessage(messages.get("status.platform", messages.placeholders("server", plugin.platform().serverName(), "folia", plugin.platform().isFolia())));
-                sender.sendMessage(messages.get("status.detector", messages.placeholders("detector", plugin.settings().detectorEnabled ? "on" : "off")));
-                sender.sendMessage(messages.get("status.model", messages.placeholders("model", active)));
-                sender.sendMessage(messages.get("status.training", messages.placeholders("training", plugin.modelService().isTraining() ? "on" : "off", "phase", plugin.modelService().trainingPhase())));
-                sender.sendMessage(messages.get("status.recording", messages.placeholders("recording", plugin.recordingService().activeCount())));
-                if (snapshot == null) {
-                    sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", "?", "legit", "?", "cheater", "?")));
-                } else {
-                    sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", snapshot.rows(), "legit", snapshot.legitRows(), "cheater", snapshot.cheaterRows())));
-                }
-                sender.sendMessage(messages.get("status.stats", messages.placeholders("analyzed", plugin.statsService().analyzedWindows(), "alerts", plugin.statsService().alerts(), "definite", plugin.statsService().definiteCheaters())));
+                final DatasetCounts finalCounts = counts;
+                plugin.platform().runGlobal(new Runnable() {
+                    @Override
+                    public void run() {
+                        String active = plugin.modelService().activeModelName();
+                        if (active == null || active.isEmpty()) {
+                            active = messages.get("model.none-active");
+                        }
+                        messages.send(sender, "status.header");
+                        sender.sendMessage(messages.get("status.version", messages.placeholders("version", plugin.getDescription().getVersion())));
+                        sender.sendMessage(messages.get("status.platform", messages.placeholders("server", plugin.platform().serverName(), "folia", plugin.platform().isFolia())));
+                        sender.sendMessage(messages.get("status.detector", messages.placeholders("detector", plugin.settings().detectorEnabled ? "on" : "off")));
+                        sender.sendMessage(messages.get("status.model", messages.placeholders("model", active)));
+                        sender.sendMessage(messages.get("status.training", messages.placeholders("training", plugin.modelService().isTraining() ? "on" : "off", "phase", plugin.modelService().trainingPhase())));
+                        sender.sendMessage(messages.get("status.recording", messages.placeholders("recording", plugin.recordingService().activeCount())));
+                        if (finalCounts == null) {
+                            sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", "?", "legit", "?", "cheater", "?")));
+                        } else {
+                            sender.sendMessage(messages.get("status.dataset", messages.placeholders("rows", finalCounts.rows(), "legit", finalCounts.legitRows(), "cheater", finalCounts.cheaterRows())));
+                        }
+                        sender.sendMessage(messages.get("status.stats", messages.placeholders("analyzed", plugin.statsService().analyzedWindows(), "alerts", plugin.statsService().alerts(), "definite", plugin.statsService().definiteCheaters())));
+                    }
+                });
             }
         });
     }
@@ -392,6 +404,10 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             modelsInfo(sender, args);
             return;
         }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("compare")) {
+            modelsCompare(sender, args);
+            return;
+        }
         int page = page(args, 1);
         List<ModelInfo> models = plugin.modelRepository().listModels();
         if (models.isEmpty()) {
@@ -430,6 +446,32 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
         messages.send(sender, "model.info-header", messages.placeholders("model", info.name()));
         sender.sendMessage(messages.get("model.info-entry", messages.placeholders("accuracy", Formats.percent(meta.accuracy()), "precision", Formats.percent(meta.precision()), "recall", Formats.percent(meta.recall()), "f1", Formats.percent(meta.f1()))));
         sender.sendMessage(messages.get("model.info-data", messages.placeholders("rows", meta.rows(), "trees", meta.treeCount(), "features", meta.featureCount(), "version", meta.pluginVersion())));
+        sender.sendMessage(messages.get("model.info-metrics-source", messages.placeholders("source", meta.metricsHoldout() ? "holdout" : "train-only", "balanced", meta.balancedClasses() ? "yes" : "no", "seed", String.valueOf(meta.seed()))));
+    }
+
+    private void modelsCompare(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            messages.send(sender, "model.compare-usage");
+            return;
+        }
+        ModelInfo first = plugin.modelRepository().findModel(args[2]);
+        if (first == null) {
+            messages.send(sender, "model.info-not-found", messages.placeholders("model", args[2]));
+            return;
+        }
+        ModelInfo second = plugin.modelRepository().findModel(args[3]);
+        if (second == null) {
+            messages.send(sender, "model.info-not-found", messages.placeholders("model", args[3]));
+            return;
+        }
+        ModelMetadata a = first.metadata();
+        ModelMetadata b = second.metadata();
+        messages.send(sender, "model.compare-header", messages.placeholders("a", first.name(), "b", second.name()));
+        sender.sendMessage(messages.get("model.compare-row", messages.placeholders("metric", "Accuracy", "a", Formats.percent(a.accuracy()), "b", Formats.percent(b.accuracy()))));
+        sender.sendMessage(messages.get("model.compare-row", messages.placeholders("metric", "Precision", "a", Formats.percent(a.precision()), "b", Formats.percent(b.precision()))));
+        sender.sendMessage(messages.get("model.compare-row", messages.placeholders("metric", "Recall", "a", Formats.percent(a.recall()), "b", Formats.percent(b.recall()))));
+        sender.sendMessage(messages.get("model.compare-row", messages.placeholders("metric", "F1", "a", Formats.percent(a.f1()), "b", Formats.percent(b.f1()))));
+        sender.sendMessage(messages.get("model.compare-row", messages.placeholders("metric", "Rows", "a", String.valueOf(a.rows()), "b", String.valueOf(b.rows()))));
     }
 
     private void dataset(CommandSender sender, String[] args) {
@@ -445,19 +487,30 @@ public final class LadCommand implements CommandExecutor, TabCompleter {
             messages.send(sender, "record.usage");
             return;
         }
-        try {
-            DatasetSnapshot snap = plugin.datasetService().snapshot();
-            long fileSize = plugin.datasetService().file().length();
-            sender.sendMessage(messages.get("dataset.info", messages.placeholders(
-                    "rows", snap.rows(),
-                    "legit", snap.legitRows(),
-                    "cheater", snap.cheaterRows(),
-                    "skipped", snap.skippedRows(),
-                    "size", Formats.size(fileSize)
-            )));
-        } catch (Exception exception) {
-            messages.send(sender, "model.error", messages.placeholders("model", "dataset", "error", exception.getMessage()));
-        }
+        plugin.datasetService().ioExecutor().submit(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    DatasetCounts counts = plugin.datasetService().counts();
+                    long fileSize = plugin.datasetService().file().length();
+                    int maxRows = plugin.settings().maxDatasetRows;
+                    boolean limitHit = maxRows > 0 && counts.rows() >= maxRows;
+                    plugin.platform().send(sender, messages.get("dataset.info", messages.placeholders(
+                            "rows", counts.rows(),
+                            "legit", counts.legitRows(),
+                            "cheater", counts.cheaterRows(),
+                            "skipped", counts.skippedRows(),
+                            "size", Formats.size(fileSize)
+                    )));
+                    plugin.platform().send(sender, messages.get("dataset.info-limit", messages.placeholders(
+                            "max", maxRows == 0 ? "unlimited" : String.valueOf(maxRows),
+                            "limit", limitHit ? "yes" : "no"
+                    )));
+                } catch (Exception exception) {
+                    plugin.platform().send(sender, messages.get("model.error", messages.placeholders("model", "dataset", "error", exception.getMessage())));
+                }
+            }
+        });
     }
 
     private void datasetTrim(CommandSender sender, String[] args) {
